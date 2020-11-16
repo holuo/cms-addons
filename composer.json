@@ -1,0 +1,40 @@
+{
+    "name": "cms/cms-addons",
+    "description": "test",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "luo",
+            "email": "746117169@qq.com"
+        },
+        {
+            "name": "byron",
+            "email": "xiaobo.sun@qq.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=7.1.0",
+        "topthink/framework": "^6.0",
+        "topthink/think-view": "^1.0",
+        "topthink/think-helper": "^3.0.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "think\\": "src/"
+        },
+        "files": [
+            "src/helper.php"
+        ]
+    },
+    "extra": {
+        "think": {
+            "services": [
+                "think\\addons\\Service"
+            ],
+            "config":{
+                "addons": "src/config.php"
+            }
+        }
+    }
+}
