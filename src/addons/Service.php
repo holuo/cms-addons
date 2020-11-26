@@ -25,7 +25,7 @@ class Service extends \think\Service
         $this->addons_path = $this->getAddonsPath();
         // 加载系统语言包
         Lang::load([
-            $this->app->getRootPath() . '/vendor/mrluo/cms-addons/src/lang/zh-cn.php'
+            $this->app->getRootPath() . '/vendor/yiluo/cms-addons/src/lang/zh-cn.php'
         ]);
         // 自动载入插件
         $this->autoload();
