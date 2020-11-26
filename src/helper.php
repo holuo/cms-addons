@@ -7,11 +7,11 @@ use think\helper\{
     Str, Arr
 };
 
-// \think\Console::starting(function (\think\Console $console) {
-//     $console->addCommands([
-//         'addons:config' => '\\think\\addons\\command\\SendConfig'
-//     ]);
-// });
+\think\Console::starting(function (\think\Console $console) {
+    $console->addCommands([
+        'addons:config' => '\\think\\addons\\command\\SendConfig'
+    ]);
+});
 
 // 插件类库自动载入
 spl_autoload_register(function ($class) {
