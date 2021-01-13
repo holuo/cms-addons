@@ -43,6 +43,8 @@ abstract class Addons
     protected $addon_config;
     // 插件信息
     protected $addon_info;
+    // 错误信息
+    protected $error = '';
 
     /**
      * 插件构造函数
@@ -151,7 +153,7 @@ abstract class Addons
         $info_file = $this->addon_path . 'info.ini';
         if (is_file($info_file)) {
             $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
-            $_info['url'] = addons_url();
+            $_info['url'] = (string) addons_url();
             $info = array_merge($_info, $info);
         }
         Config::set($info, $this->addon_info);
@@ -184,6 +186,15 @@ abstract class Addons
         Config::set($config, $this->addon_config);
 
         return $config;
+    }
+
+    /**
+     * 获取错误信息
+     * @return string
+     */
+    final public function getError()
+    {
+        return $this->error;
     }
 
     //必须实现安装

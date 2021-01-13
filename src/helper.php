@@ -24,7 +24,6 @@ spl_autoload_register(function ($class) {
         }
         $path .= str_replace('_', '/', $class) . '.php';
         $dir .= $namespace . $path;
-
         if (file_exists($dir)) {
             include $dir;
             return true;
@@ -118,9 +117,8 @@ if (!function_exists('get_addons_class')) {
                 $namespace = '\\addons\\' . $name . '\\controller\\' . $class;
                 break;
             default:
-                $namespace = '\\addons\\' . $name . '\\Plugin';
+                $namespace = '\\addons\\' . $name . '\\' . $class;
         }
-
         return class_exists($namespace) ? $namespace : '';
     }
 }
@@ -169,3 +167,144 @@ if (!function_exists('addons_url')) {
     }
 }
 
+if (!function_exists('get_addons_info_all')) {
+
+    /**
+     * 获取本地所有插件信息
+     * @param $type string 插件类型， template 或其他
+     * @return array
+     */
+    function get_addons_info_all($type)
+    {
+        $all = app()->cache->get('get_addons_info_all_'.$type);
+        if (!empty($all)) {
+            return $all;
+        }
+        if ($type=='template') {
+            $templatePath = config('cms.tpl_path');
+            $module = glob( $templatePath . '*');
+
+            $data = [];
+            foreach ($module as $key => $value) {
+                if (is_dir($value) == false) {
+                    continue;
+                }
+                $name = basename($value); // 模板下的文件夹，默认情况下只有index、admin
+                $templateArr = glob( $templatePath.$name.DIRECTORY_SEPARATOR . '*');
+                foreach ($templateArr as $k=>$v) {
+                    if (is_dir($v) == false) {
+                        continue;
+                    }
+                    $tempArr = [];
+                    $tempArr['name'] = basename($v);
+
+                    // 获取预览图
+                    $previewPath = public_path('static'.DIRECTORY_SEPARATOR.$name.DIRECTORY_SEPARATOR.$tempArr['name']).'preview.jpg';
+                    if (is_file($previewPath)) {
+                        $tempArr['image'] = str_replace('\\', '/', '/' . str_replace(public_path(), "", $previewPath));
+                    } else {
+                        $tempArr['image'] = '/static/common/image/nopic.png';
+                    }
+
+                    // 获取模板说明
+                    $info_file = $v . DIRECTORY_SEPARATOR . 'info.ini';
+                    if (is_file($info_file)) {
+                        $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+                        $tempArr = array_merge($tempArr, $_info);
+                    }
+                    $data[$name][$tempArr['name']] = $tempArr;
+                }
+            }
+        } else {
+            $dir = app()->getRootPath() . 'addons' . DIRECTORY_SEPARATOR;
+            $addons = glob( $dir . '*');
+            $data = [];
+            foreach ($addons as $key => $value) {
+                $name = basename($value);
+                $info = get_addons_info($name);
+                if (!empty($info)) {
+                    $data[$name] = $info;
+                }
+            }
+        }
+        app()->cache->set('get_addons_info_all_'.$type, $data);
+        return $data;
+    }
+}
+
+if (!function_exists('set_addons_info')) {
+    /**
+     * 修改插件配置信息
+     * @param $name string 插件标识
+     * @param $array array 配置字段数组
+     * @return bool|string
+     */
+    function set_addons_info($name, $array)
+    {
+        $info_file = app()->getRootPath() . 'addons' . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'info.ini';
+        if (!is_file($info_file)) {
+            return '插件的ini配置文件不存在！';
+        }
+
+        // 读取配置
+        $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+        $array = array_merge($_info, $array);
+        $tempArr = [];
+        foreach ($array as $key=>$value) {
+            if (is_array($value)) {
+                $tempArr[] = "[{$key}]";
+                foreach ($value as $k=>$v) {
+                    $tempArr[] = is_numeric($value) ? "$k = $v" : "$k = \"$v\"";
+                }
+            } else {
+                $tempArr[] = is_numeric($value) ? "$key = $value" : "$key = \"$value\"";
+            }
+        }
+
+        // 写入配置
+        if ($handle = fopen($info_file, 'w')) {
+            fwrite($handle, implode("\n", $tempArr)."\n");
+            fclose($handle);
+            \think\facade\Config::set($tempArr, "addon_{$name}_info");
+        } else {
+            return "[$info_file]文件写入失败！";
+        }
+        return true;
+    }
+}
+
+if (!function_exists('get_addons_config')) {
+    function get_addons_config($type, $name, $complete=false)
+    {
+        if ($type=='template') {
+            // 待定
+        } else {
+            $k = "addon_{$name}_config";
+            $config = app()->config->get($k, []);
+            if ($config) {
+                return $config;
+            }
+
+            $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
+            if (is_file($config_file)) {
+                $temp_arr = (array)include $config_file;
+                if ($complete) {
+                    return $temp_arr;
+                }
+                foreach ($temp_arr as $key => $value) {
+                    $config[$key] = $value['value'];
+                }
+                unset($temp_arr);
+            }
+            app()->config->set($config, $k);
+            return $config;
+        }
+    }
+}
+
+if (!function_exists('write_addons_config')) {
+    function write_addons_config()
+    {
+
+    }
+}

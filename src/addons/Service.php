@@ -175,13 +175,16 @@ class Service extends \think\Service
             // 获取插件目录名
             $name = pathinfo($info['dirname'], PATHINFO_FILENAME);
             // 找到插件入口文件
-            if (strtolower($info['filename']) === 'plugin') {
+            if (strtolower($info['filename']) === $name) {
                 // 读取出所有公共方法
                 $methods = (array)get_class_methods("\\addons\\" . $name . "\\" . $info['filename']);
                 // 跟插件基类方法做比对，得到差异结果
                 $hooks = array_diff($methods, $base);
                 // 循环将钩子方法写入配置中
                 foreach ($hooks as $hook) {
+                    if (strlen($hook)<4 || substr($hook, -4)!='hook') {
+                        continue;
+                    }
                     if (!isset($config['hooks'][$hook])) {
                         $config['hooks'][$hook] = [];
                     }
@@ -217,6 +220,7 @@ class Service extends \think\Service
     /**
      * 获取插件的配置信息
      * @param string $name
+     * @param boolean $complete
      * @return array
      */
     public function getAddonsConfig()
@@ -226,7 +230,6 @@ class Service extends \think\Service
         if (!$addon) {
             return [];
         }
-
-        return $addon->getConfig();
+        return $addon->getConfig($complete);
     }
 }
