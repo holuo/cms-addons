@@ -1,8 +1,8 @@
 # cms-addons
-cms插件模块、测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试测试
+YizCms插件模块
 
 ## 文档地址
-http://doc.xxx.com/
+http://doc.yizcms.com/
 
 ## 特别感谢
 https://github.com/zz-studio/think-addons
