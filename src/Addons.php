@@ -179,7 +179,15 @@ abstract class Addons
                 return $temp_arr;
             }
             foreach ($temp_arr as $key => $value) {
-                $config[$key] = $value['value'];
+                //$config[$key] = $value['value'];
+
+                foreach ($value['item'] as $kk=>$v) {
+                    if (in_array($v['type'], ['checkbox','selects'])) {
+                        $config[$key][$kk] = explode(',', $v['value']);
+                    } else {
+                        $config[$key][$kk] = $v['value'];
+                    }
+                }
             }
             unset($temp_arr);
         }

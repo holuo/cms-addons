@@ -274,37 +274,74 @@ if (!function_exists('set_addons_info')) {
 }
 
 if (!function_exists('get_addons_config')) {
-    function get_addons_config($type, $name, $complete=false)
+    /**
+     * 获取插件配置
+     * @param $type
+     * @param $name
+     * @param string $module
+     * @param bool $complete
+     * @return array|mixed|null
+     */
+    function get_addons_config($type, $name, $module='', $complete=false)
     {
         if ($type=='template') {
-            // 待定
+            $k = "template_{$name}_config";
+            $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.php';
         } else {
             $k = "addon_{$name}_config";
-            $config = app()->config->get($k, []);
-            if ($config) {
-                return $config;
-            }
-
             $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
-            if (is_file($config_file)) {
-                $temp_arr = (array)include $config_file;
-                if ($complete) {
-                    return $temp_arr;
-                }
-                foreach ($temp_arr as $key => $value) {
-                    $config[$key] = $value['value'];
-                }
-                unset($temp_arr);
-            }
-            app()->config->set($config, $k);
+        }
+
+        $config = app()->config->get($k, []);
+        if ($config) {
             return $config;
         }
+
+        if (is_file($config_file)) {
+            $temp_arr = (array)include $config_file;
+            if ($complete) {
+                return $temp_arr;
+            }
+            foreach ($temp_arr as $key => $value) {
+                foreach ($value['item'] as $kk=>$v) {
+                    if (in_array($v['type'], ['checkbox','selects'])) {
+                        $config[$key][$kk] = explode(',', $v['value']);
+                    } else {
+                        $config[$key][$kk] = $v['value'];
+                    }
+                }
+            }
+            unset($temp_arr);
+            app()->config->set($config, $k);
+        }
+        return $config;
     }
 }
 
 if (!function_exists('write_addons_config')) {
-    function write_addons_config()
+    /**
+     * 写入插件配置文件
+     * @param $type
+     * @param $name
+     * @param $data
+     */
+    function write_addons_config($type, $name, $module='', $data)
     {
+        if ($type=='template') {
+            $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.php';
+        } else {
+            $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
+        }
 
+        if (!is_really_writable($config_file)) {
+            throw new \think\addons\AddonsException($config_file.',文件无法写入');
+        }
+
+        if ($handle=fopen($config_file, 'w')) {
+            fwrite($handle, "<?php\n\n"."return ".\Symfony\Component\VarExporter\VarExporter::export($data).";\n");
+            fclose($handle);
+        } else {
+            throw new \think\addons\AddonsException($config_file.',文件无权限写入');
+        }
     }
 }
