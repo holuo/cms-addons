@@ -44,7 +44,7 @@ class Route
         Event::trigger('addons_begin', $request);
 
         if (empty($addon) || empty($controller) || empty($action)) {
-            throw new HttpException(500, lang('addon can not be empty'));
+            throw new HttpException(500, lang('Addon can not be empty'));
         }
 
         $request->addon = $addon;
@@ -54,17 +54,17 @@ class Route
         // 获取插件基础信息
         $info = get_addons_info($addon);
         if (!$info) {
-            throw new HttpException(404, lang('addon %s not found', [$addon]));
+            throw new HttpException(404, lang('Addon %s not found', [$addon]));
         }
         if (!$info['status']) {
-            throw new HttpException(500, lang('addon %s is disabled', [$addon]));
+            throw new HttpException(500, lang('Addon %s is disabled', [$addon]));
         }
 
         // 监听addon_module_init
         Event::trigger('addon_module_init', $request);
         $class = get_addons_class($addon, 'controller', $controller);
         if (!$class) {
-            throw new HttpException(404, lang('addon controller %s not found', [Str::studly($controller)]));
+            throw new HttpException(404, lang('Addon controller %s not found', [Str::studly($controller)]));
         }
 
         // 重写视图基础路径
@@ -84,7 +84,7 @@ class Route
             $vars = [$action];
         } else {
             // 操作不存在
-            throw new HttpException(404, lang('addon action %s not found', [get_class($instance).'->'.$action.'()']));
+            throw new HttpException(404, lang('Addon action %s not found', [get_class($instance).'->'.$action.'()']));
         }
         Event::trigger('addons_action_begin', $call);
 

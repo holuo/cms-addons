@@ -243,7 +243,7 @@ if (!function_exists('set_addons_info')) {
     {
         $info_file = app()->getRootPath() . 'addons' . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'info.ini';
         if (!is_file($info_file)) {
-            return '插件的ini配置文件不存在！';
+            return lang('Plug-ini configuration file does not exist');
         }
 
         // 读取配置
@@ -267,7 +267,7 @@ if (!function_exists('set_addons_info')) {
             fclose($handle);
             \think\facade\Config::set($tempArr, "addon_{$name}_info");
         } else {
-            return "[$info_file]文件写入失败！";
+            return lang('%s,File write failed', ["[$info_file]"]);
         }
         return true;
     }
@@ -323,6 +323,7 @@ if (!function_exists('write_addons_config')) {
      * 写入插件配置文件
      * @param $type
      * @param $name
+     * @param $module
      * @param $data
      */
     function write_addons_config($type, $name, $module='', $data)
@@ -334,14 +335,14 @@ if (!function_exists('write_addons_config')) {
         }
 
         if (!is_really_writable($config_file)) {
-            throw new \think\addons\AddonsException($config_file.',文件无法写入');
+            throw new \think\addons\AddonsException(lang('%s,File cannot be written',[$config_file]));
         }
 
         if ($handle=fopen($config_file, 'w')) {
             fwrite($handle, "<?php\n\n"."return ".\Symfony\Component\VarExporter\VarExporter::export($data).";\n");
             fclose($handle);
         } else {
-            throw new \think\addons\AddonsException($config_file.',文件无权限写入');
+            throw new \think\addons\AddonsException(lang('%s,File has no permission to write', [$config_file]));
         }
     }
 }

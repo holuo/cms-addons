@@ -363,7 +363,7 @@ class Dir
     public function delDir($directory, $subdir=true)
     {
         if (is_dir($directory) == false) {
-            $this->error = "该目录是不存在！";
+            $this->error = lang('Directory does not exist');
             return false;
         }
         $handle = opendir($directory);
@@ -386,7 +386,7 @@ class Dir
     public function delFile($directory)
     {
         if (is_dir($directory) == false) {
-            $this->error = "该目录是不存在！";
+            $this->error = lang('Directory does not exist');
             return false;
         }
         $handle = opendir($directory);
@@ -408,7 +408,7 @@ class Dir
     public function copyDir($source, $destination)
     {
         if (is_dir($source) == false) {
-            $this->error = "源目录不存在！";
+            $this->error = lang('Source directory does not exist');
             return false;
         }
         if (is_dir($destination) == false) {
@@ -436,7 +436,7 @@ class Dir
     {
         $list = $this->rglob($tmpdir . '*', GLOB_BRACE);
         if (empty($list)) {
-            $this->error = "移动文件到指定目录错误，原因：文件列表为空！";
+            $this->error = lang('Error moving files to the specified directory, reason: the file list is empty!');
             return false;
         }
 
@@ -446,19 +446,19 @@ class Dir
             // 目录名称
             $dirname = dirname($newd);
             if (file_exists($dirname) == false && mkdir($dirname, 0777, TRUE) == false) {
-                $this->error = "创建文件夹{$dirname}失败！";
+                $this->error = lang('Failed to create "%s" folder',[$dirname]);
                 return false;
             }
 
             // 检查缓存包中的文件如果文件或者文件夹存在，但是不可写提示错误
             if (file_exists($file) && is_writable($file) == false) {
-                $this->error = "文件或者目录{$file}，不可写！";
+                $this->error = lang('File or directory, not writable')." [$file]";
                 return false;
             }
 
             // 检查目标文件是否存在，如果文件或者文件夹存在，但是不可写提示错误
             if (file_exists($newd) && is_writable($newd) == false) {
-                $this->error = "文件或者目录{$newd}，不可写！";
+                $this->error = lang('File or directory, not writable')." [$newd]";
                 return false;
             }
 
@@ -466,20 +466,20 @@ class Dir
             if (is_dir($file)) {
                 // 文件夹不存在则创建
                 if (file_exists($newd) == false && mkdir($newd, 0777, TRUE) == false) {
-                    $this->error = "创建文件夹{$newd}失败！";
+                    $this->error = lang('Failed to create "%s" folder',[$newd]);
                     return false;
                 }
             } else {
                 if (file_exists($newd)) {
                     // 删除旧文件（winodws 环境需要）
                     if (!@unlink($newd)) {
-                        $this->error = "无法删除{$newd}文件！";
+                        $this->error = lang('Cannot delete file %s', [$newd]);
                         return false;
                     }
                 }
                 // 生成新文件，也就是把下载的，生成到新的路径中去
                 if (!@rename($file, $newd)) {
-                    $this->error = "无法生成{$newd}文件！";
+                    $this->error = lang('Unable to generate %s file', [$newd]);
                     return false;
                 }
             }

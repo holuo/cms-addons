@@ -91,7 +91,7 @@ class Cloud
     public function getFilter($type)
     {
         if (empty($type)) {
-            throw new AddonsException('类型不能为空');
+            throw new AddonsException(lang('Type cannot be empty'));
         }
         return $this->getRequest(['url'=>'appcenter/getfilter?type='.$type, 'method'=>'get']);
     }
@@ -140,7 +140,7 @@ class Cloud
         if (substr($content, 0, 1) === '{') {
             // json 错误信息
             $json = json_decode($content, true);
-            throw new AddonsException($json['msg']??'服务器返回数据异常~');
+            throw new AddonsException($json['msg']??lang('Server returns abnormal data'));
         }
 
         // 保存
@@ -167,13 +167,13 @@ class Cloud
                 // 检查info.ini文件
                 $info_file = $unzipPath . 'info.ini';
                 if (!is_file($info_file)) {
-                    throw new AddonsException('info.ini 文件不存在');
+                    throw new AddonsException(lang('The info.ini file does not exist'));
                 }
                 $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
                 if ('template'!=$info['type'] && (empty($_info) || empty($_info['name']) || empty($_info['type']))) {
-                    throw new AddonsException('info.ini 文件中name、type 必须！');
-                } else if ('template'==$info['type'] && (empty($_info) || empty($_info['module']) || empty($_info['name']) || empty($_info['type']))) {
-                    throw new AddonsException('info.ini 文件中的 module、name、type 必须！');
+                    throw new AddonsException(lang('The name and type in the info.ini file must be!'));
+                } else if ('template'==$info['type'] && (empty($_info) || empty($_info['module']) || empty($_info['name']))) {
+                    throw new AddonsException(lang('The module, name, and type in the info.ini file must be!'));
                 }
 
                 // 模板情况下的处理
@@ -239,7 +239,7 @@ class Cloud
             }
             return true;
         }
-        throw new AddonsException('没有权限保存【'.$zip.'】');
+        throw new AddonsException(lang('No permission to save').'【'.$zip.'】');
     }
 
     /**
@@ -266,16 +266,16 @@ class Cloud
             // 检查info.ini文件
             $info_file = $unzipPath . 'info.ini';
             if (!is_file($info_file)) {
-                throw new AddonsException('info.ini 文件不存在');
+                throw new AddonsException(lang('The info.ini file does not exist'));
             }
             $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
             if ('template'!=$type && (empty($_info) || empty($_info['name']) || empty($_info['type']))) {
-                throw new AddonsException('info.ini 文件中name、type 必须！');
-            } else if ('template'==$type && (empty($_info) || empty($_info['module']) || empty($_info['name']) || empty($_info['type']))) {
-                throw new AddonsException('info.ini 文件中的 module、name、type 必须！');
+                throw new AddonsException(lang('The name and type in the info.ini file must be!'));
+            } else if ('template'==$type && (empty($_info) || empty($_info['module']) || empty($_info['name']))) {
+                throw new AddonsException(lang('The module, name, and type in the info.ini file must be!'));
             }
             if (!preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $_info['name'])) {
-                throw new AddonsException('插件标识格式不正确');
+                throw new AddonsException(lang('Incorrect plug-in ID format'));
             }
             list($dir, $addonsPath, $staticPath) = $this->competence(['name'=>$_info['name'], 'type'=>$type, 'module'=>$_info['module']??'']);
 
@@ -384,16 +384,16 @@ class Cloud
                                 if (is_file($v)) {
                                     $newFile = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);
                                     if (file_exists($newFile)) {
-                                        throw new AddonsException('【'.$newFile.'】已存在');
+                                        throw new AddonsException(lang('%s,existed',[$newFile]));
                                     }
                                     $installFile[] = $newFile; // 记录安装的文件，出错回滚
                                 } else if (is_dir($v) && !is_writable($v)) {
-                                    throw new AddonsException('【'.$v.'】不可写');
+                                    throw new AddonsException(lang('%s,Not writable', $v));
                                 }
                             }
                             $bl = Dir::instance()->copyDir($appPathInstall. $value . DIRECTORY_SEPARATOR, base_path());
                             if ($bl===false) {
-                                throw new AddonsException('【'.$appPathInstall. $value . DIRECTORY_SEPARATOR.'】复制到【'.base_path().'】失败');
+                                throw new AddonsException(lang('%s copy to %s fails',[$appPathInstall. $value . DIRECTORY_SEPARATOR,base_path()]));
                             }
                         } else if ('static'==$value) { // 静态文件 代码复制
                             $listArr = Dir::instance()->rglob($appPathInstall. $value . DIRECTORY_SEPARATOR . '*', GLOB_BRACE);
@@ -403,18 +403,18 @@ class Cloud
 
                             $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
                             if (!is_writable($addonsStatic)) {
-                                throw new AddonsException('【'.$addonsStatic.'】不可写');
+                                throw new AddonsException(lang('%s,Not writable', [$addonsStatic]));
                             }
                             if (is_dir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
-                                throw new AddonsException('【'.$addonsStatic.'】已存在');
+                                throw new AddonsException(lang('%s,existed', [$addonsStatic]));
                             }
                             if (!@mkdir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
-                                throw new AddonsException('【'.$addonsStatic.DIRECTORY_SEPARATOR.$name.'】文件夹创建失败');
+                                throw new AddonsException(lang('Failed to create "%s" folder',[$addonsStatic.DIRECTORY_SEPARATOR.$name]));
                             }
                             $installDir[] = $addonsStatic.DIRECTORY_SEPARATOR.$name; // 记录安装的文件，出错回滚
                             $bl = Dir::instance()->copyDir($appPathInstall. $value . DIRECTORY_SEPARATOR, $addonsStatic.DIRECTORY_SEPARATOR.$name);
                             if ($bl===false) {
-                                throw new AddonsException('【'.$appPathInstall. $value . DIRECTORY_SEPARATOR.'】复制到【'.$addonsStatic.DIRECTORY_SEPARATOR.$name.'】失败');
+                                throw new AddonsException(lang('%s copy to %s fails',[$appPathInstall. $value . DIRECTORY_SEPARATOR,$addonsStatic.DIRECTORY_SEPARATOR.$name]));
                             }
                         }
                     }
@@ -467,12 +467,12 @@ class Cloud
                             if (is_file($v)) {
                                 $newFile = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);
                                 if (!is_writable($newFile)) {
-                                    throw new AddonsException('没有文件权限操作【'.$newFile.'】');
+                                    throw new AddonsException(lang('%s,File has no permission to write',[$newFile]));
                                 }
                                 $fileArr[] = $newFile;
                             } else if (is_dir($v)) {
                                 if (!is_writable($v)) {
-                                    throw new AddonsException('没有文件权限操作【'.$v.'】');
+                                    throw new AddonsException(lang('%s,File has no permission to write',[$v]));
                                 }
                                 $dirArr[] = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);;
                             }
@@ -485,7 +485,7 @@ class Cloud
 
                         $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
                         if (!is_writable($addonsStatic)) {
-                            throw new AddonsException('【'.$addonsStatic.'】不可写');
+                            throw new AddonsException(lang('%s,Not writable', [$addonsStatic]));
                         }
                         $static[] = $addonsStatic.$name.DIRECTORY_SEPARATOR;
                     }
@@ -541,36 +541,36 @@ class Cloud
             $addonsPath = config('cms.tpl_path').$param['module'].DIRECTORY_SEPARATOR;
             $staticPath = public_path('static'.DIRECTORY_SEPARATOR.$param['module']);
             if (!is_dir($addonsPath)) { // 模板安装目录是否存在
-                throw new AddonsException('模板依赖应用【'.$param['module'].'】不存在！');
+                throw new AddonsException(lang('The template depends on the "%s" application and failed!',[$param['module']]));
             }
             if (!is_writable($addonsPath)) { // 模板安装目录是否可写
-                throw new AddonsException('目录【'.$addonsPath.'】不可写！');
+                throw new AddonsException(lang('%s,Not writable', [$addonsPath]));
             }
 
             if (!is_dir($staticPath)) { // 静态资源安装目录
-                throw new AddonsException('静态资源目录【'.$param['module'].'】不存在！');
+                throw new AddonsException(lang('The static resource directory "%s" does not exist!',[$param['module']]));
             }
             if (!is_writable($staticPath)) { // 静态资源安装目录是否可写
-                throw new AddonsException('目录【'.$staticPath.'】不可写！');
+                throw new AddonsException(lang('%s,Not writable', [$staticPath]));
             }
 
             if (is_dir($addonsPath.$param['name']) && $update===false) {
-                throw new AddonsException('模板安装目录【'.$addonsPath.$param['name'].'】已存在！');
+                throw new AddonsException(lang('The template installation directory "%s" already exists!',[$addonsPath.$param['name']]));
             }
             if (is_dir($staticPath.$param['name']) && $update===false) {
-                throw new AddonsException('静态文件安装目录【'.$staticPath.$param['name'].'】已存在！');
+                throw new AddonsException(lang('The static file installation directory "%s" already exists!',[$staticPath.$param['name']]));
             }
         } else {
             // addons 目录权限检测
             $addonsPath = app()->addons->getAddonsPath();
             if (!is_writable($addonsPath)) {
-                throw new AddonsException("该路径没有写的权限【{$addonsPath}】");
+                throw new AddonsException(lang('%s,Folder has no permission to write',[$addonsPath]));
             }
 
             // 判断插件目录已存在
             $dirArr = $this->getAddonsDir($addonsPath);
             if (in_array($param['name'], $dirArr)  && $update===false) {
-                throw new AddonsException("目录已存在【{$param['name']}】");
+                throw new AddonsException(lang('%s,existed',[$param['name']]));
             }
         }
         return [$dir,$addonsPath,$staticPath];
@@ -659,7 +659,7 @@ class Cloud
                 throw new AddonsException($json['msg']);
             }
         } else {
-            throw new AddonsException('返回的数据异常');
+            throw new AddonsException(lang('Server returns abnormal data'));
         }
     }
 }
