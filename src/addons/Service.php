@@ -107,12 +107,17 @@ class Service extends \think\Service
                 } else {
                     $values = (array) $values;
                 }
-                $hooks[$key] = array_filter(array_map(function ($v) use ($key) {
-                    return [get_addons_class($v), $key];
+
+                $key = rtrim($key, 'Hook'); // 默认不带Hook
+                $key_r = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $key), "_"));
+                $hooks[$key_r] = array_filter(array_map(function ($v) use ($key) {
+                    //return [get_addons_class($v), $key];
+                    return [get_addons_class($v), $key.'Hook']; // 默认不带Hook
                 }, $values));
             }
             Cache::set('hooks', $hooks);
         }
+        
         //如果在插件中有定义 AddonsInit，则直接执行
         if (isset($hooks['AddonsInit'])) {
             foreach ($hooks['AddonsInit'] as $k => $v) {
@@ -182,7 +187,8 @@ class Service extends \think\Service
                 $hooks = array_diff($methods, $base);
                 // 循环将钩子方法写入配置中
                 foreach ($hooks as $hook) {
-                    if (strlen($hook)<4 || substr($hook, -4)!='hook') {
+                    // 只取后缀是Hook的事件
+                    if (strlen($hook)<4 || substr($hook, -4)!='Hook') {
                         continue;
                     }
                     if (!isset($config['hooks'][$hook])) {
