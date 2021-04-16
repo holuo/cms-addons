@@ -172,15 +172,23 @@ abstract class Addons
         if ($config) {
             return $config;
         }
-        $config_file = $this->addon_path . 'config.php';
-        if (is_file($config_file)) {
-            $temp_arr = (array)include $config_file;
+
+        $temp_arr = \app\admin\model\App::where(['name'=>$this->name])->value('config');
+        $temp_arr = json_decode($temp_arr, true);
+        if (empty($temp_arr)) {
+            $config_file = $this->addon_path . 'config.php';
+            if (is_file($config_file)) {
+                $temp_arr = (array)include $config_file;
+            }
+        } else {
+            $temp_arr = json_decode($temp_arr, true);
+        }
+
+        if (!empty($temp_arr)) {
             if ($type) {
                 return $temp_arr;
             }
             foreach ($temp_arr as $key => $value) {
-                //$config[$key] = $value['value'];
-
                 foreach ($value['item'] as $kk=>$v) {
                     if (in_array($v['type'], ['checkbox','selects'])) {
                         $config[$key][$kk] = explode(',', $v['value']);

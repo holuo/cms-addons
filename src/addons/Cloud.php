@@ -178,8 +178,6 @@ class Cloud
 
                 // 模板情况下的处理
                 if ('template'==$info['type']) {
-                    @unlink($zip);
-
                     $staticAppPath = $staticPath . $info['name'] . DIRECTORY_SEPARATOR;
                     $addonsAppPath = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
 
@@ -195,7 +193,7 @@ class Cloud
                     // 移动对应的模板目录
                     $dir = Dir::instance();
                     if (is_dir($unzipPath . 'static' . DIRECTORY_SEPARATOR)) {
-                        $bl = $dir->movedFile($unzipPath . 'static' . DIRECTORY_SEPARATOR, $staticAppPath, $zip);
+                        $bl = $dir->movedFile($unzipPath . 'static' . DIRECTORY_SEPARATOR, $staticAppPath);
                         if ($bl===false) {
                             throw new AddonsException($dir->error);
                         }
@@ -209,11 +207,10 @@ class Cloud
                     @mkdir($addonsPath . $info['name'], 0755, true);
                     $installDirArr[] = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
                     $zipFile->extractTo($addonsPath . $info['name'] . DIRECTORY_SEPARATOR);
-                    @unlink($zip);
 
-                    if ($update===true && $info['status']==1) { // 判断是否已经启用，先禁用
-                        $this->disable($info['name']);
-                    }
+                     if ($update===true && $info['status']==1) { // 判断是否已经启用，先禁用
+                         $this->disable($info['name']);
+                     }
 
                     $obj = get_addons_instance($info['name']);
                     if (!empty($obj)) { // 调用插件安装
@@ -237,16 +234,18 @@ class Cloud
                 $this->clearInstallDir($installDirArr, [$zip]);
                 throw new AddonsException($e->getMessage());
             }
+            @unlink($zip);
             return true;
         }
         throw new AddonsException(lang('No permission to save').'【'.$zip.'】');
     }
 
     /**
-     * 安装本地
+     * 本地安装
      * @param $type
      * @param $file
-     * @return bool
+     * @return array|false
+     * @throws AddonsException
      */
     public function installLocal($type, $file)
     {
@@ -276,6 +275,10 @@ class Cloud
             }
             if (!preg_match('/^[a-zA-Z][a-zA-Z0-9_]*$/', $_info['name'])) {
                 throw new AddonsException(lang('Incorrect plug-in ID format'));
+            }
+            $all = get_addons_info_all($type);
+            if (isset($all[$_info['name']])) {
+                throw new AddonsException(lang('Plug in %s already exists.', [$_info['name']]));
             }
             list($dir, $addonsPath, $staticPath) = $this->competence(['name'=>$_info['name'], 'type'=>$type, 'module'=>$_info['module']??'']);
 
@@ -315,8 +318,8 @@ class Cloud
                 // 调用插件启用方法
                 $this->enable($_info['name']);
             }
-            @unlink($file);
             $zipFile->close();
+            @unlink($file);
         } catch (AddonsException $e) {
             $zipFile->close();
             $this->clearInstallDir($installDirArr, [$file]);
@@ -330,7 +333,7 @@ class Cloud
             $this->clearInstallDir($installDirArr, [$file]);
             throw new AddonsException($e->getMessage());
         }
-        return true;
+        return $_info;
     }
 
     /**
@@ -349,8 +352,8 @@ class Cloud
         } else {
             // 插件卸载
             $obj = get_addons_instance($info['name']);
-            if (!empty($obj)) { // 调用插件安装
-                $obj->install();
+            if (!empty($obj)) { // 调用插件卸载
+                $obj->uninstall();
             }
 
             Dir::instance()->delDir(app()->addons->getAddonsPath().$info['name']);
@@ -434,11 +437,12 @@ class Cloud
             $obj->enable();
         }
 
-        $res = set_addons_info($name, ['status'=>1]);
-        if ($res!==true) {
-            $this->clearInstallDir($installDir,$installFile);
-            throw new AddonsException($exception->getMessage());
-        }
+        // 使用数据库代替
+        // $res = set_addons_info($name, ['status'=>1]);
+        // if ($res!==true) {
+        //     $this->clearInstallDir($installDir,$installFile);
+        //     throw new AddonsException($exception->getMessage());
+        // }
         return true;
     }
 
@@ -507,17 +511,18 @@ class Cloud
             $this->clearInstallDir($static,[]);
         }
 
-        // 执行插件启用方法
+        // 执行插件禁用方法
         $obj = get_addons_instance($name);
-        if (!empty($obj) && method_exists($obj,'enable')) {
+        if (!empty($obj) && method_exists($obj,'disable')) {
             $obj->disable();
         }
 
-        $res = set_addons_info($name, ['status'=>0]);
-        if ($res!==true) {
-            $this->clearInstallDir($installDir,$installFile);
-            throw new AddonsException($exception->getMessage());
-        }
+        // 使用数据库代替
+        //$res = set_addons_info($name, ['status'=>0]);
+        //if ($res!==true) {
+        //    $this->clearInstallDir($installDir,$installFile);
+        //    throw new AddonsException($exception->getMessage());
+        //}
         return true;
     }
 

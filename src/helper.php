@@ -286,7 +286,7 @@ if (!function_exists('get_addons_config')) {
     {
         if ($type=='template') {
             $k = "template_{$name}_config";
-            $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.php';
+            $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.json';
         } else {
             $k = "addon_{$name}_config";
             $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
@@ -297,8 +297,17 @@ if (!function_exists('get_addons_config')) {
             return $config;
         }
 
-        if (is_file($config_file)) {
-            $temp_arr = (array)include $config_file;
+        // 优先从数据库里取
+        $temp_arr = \app\admin\model\App::where(['name'=>$name])->value('config');
+        if (empty($temp_arr)) {
+            if (is_file($config_file)) {
+                $temp_arr = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
+            }
+        } else {
+            $temp_arr = json_decode($temp_arr, true);
+        }
+
+        if (!empty($temp_arr)) {
             if ($complete) {
                 return $temp_arr;
             }

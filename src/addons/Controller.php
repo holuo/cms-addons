@@ -177,9 +177,18 @@ abstract class Controller
         if ($config) {
             return $config;
         }
-        $config_file = $this->addon_path . 'config.php';
-        if (is_file($config_file)) {
-            $temp_arr = (array)include $config_file;
+
+        $temp_arr = \app\admin\model\App::where(['name'=>$this->name])->value('config');
+        if (empty($temp_arr)) {
+            $config_file = $this->addon_path . 'config.php';
+            if (is_file($config_file)) {
+                $temp_arr = (array)include $config_file;
+            }
+        } else {
+            $temp_arr = json_decode($temp_arr, true);
+        }
+
+        if (!empty($temp_arr)) {
             if ($type) {
                 return $temp_arr;
             }
