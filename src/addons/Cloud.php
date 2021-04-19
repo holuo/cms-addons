@@ -345,7 +345,7 @@ class Cloud
     {
         if ('template' == $info['type']) { // 模板卸载方式
             $addonsPath = config('cms.tpl_path').$info['module'].DIRECTORY_SEPARATOR;
-            $staticPath = public_path('static'.DIRECTORY_SEPARATOR.$info['module']);
+            $staticPath = config('cms.tpl_static').$info['module'].DIRECTORY_SEPARATOR;
             Dir::instance()->delDir($addonsPath.$info['name']);
             Dir::instance()->delDir($staticPath.$info['name']);
             return true;
@@ -544,7 +544,7 @@ class Cloud
         $staticPath = '';
         if ($param['type']=='template') {
             $addonsPath = config('cms.tpl_path').$param['module'].DIRECTORY_SEPARATOR;
-            $staticPath = public_path('static'.DIRECTORY_SEPARATOR.$param['module']);
+            $staticPath = config('cms.tpl_static').$param['module'].DIRECTORY_SEPARATOR;
             if (!is_dir($addonsPath)) { // 模板安装目录是否存在
                 throw new AddonsException(lang('The template depends on the "%s" application and failed!',[$param['module']]));
             }
