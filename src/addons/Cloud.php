@@ -27,6 +27,30 @@ class Cloud
     }
 
     /**
+     * 检测更新
+     * @return mixed
+     * @throws AddonsException
+     */
+    public function checkUpgrade($v)
+    {
+        return $this->getRequest(['url'=>'cms/upgrade', 'method'=>'GET', 'option'=>[
+            'query'=>['v'=>$v]
+        ]]);
+    }
+
+    /**
+     * 联盟授权检测
+     * @param $domain
+     * @return mixed
+     */
+    public function checkAuthorize($domain)
+    {
+        return $this->getRequest(['url'=>'cms/authorize', 'method'=>'GET', 'option'=>[
+            'query'=>['domain'=>$domain]
+        ]]);
+    }
+
+    /**
      * 验证用户信息
      * @param $user
      * @param $pass
@@ -53,7 +77,7 @@ class Cloud
     public function getList($filter)
     {
         return $this->getRequest(['url'=>'appcenter/getlist', 'method'=>'get', 'option'=>[
-            'query' => $filter
+            'query'=>$filter
         ]]);
     }
 
