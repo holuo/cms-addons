@@ -42,13 +42,18 @@ if (!function_exists('hook')) {
      * @param string $event 钩子名称
      * @param array|null $params 传入参数
      * @param bool $once 是否只返回一个结果
+     * @param bool $original true - 返回tp trigger原样的数据，false - 返回字符串，如果原样返回数据是数组即会转换成字符串
      * @return mixed
      */
-    function hook($event, $params = null, bool $once = false)
+    function hook($event, $params = null, bool $once = false, bool $original = false)
     {
         $result = Event::trigger($event, $params, $once);
 
-        return join('', $result);
+        if ($original) {
+            return $result;
+        } else {
+            return join('', $result);
+        }
     }
 }
 
