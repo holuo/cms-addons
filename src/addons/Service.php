@@ -101,6 +101,7 @@ class Service extends \think\Service
         if (empty($hooks)) {
             $hooks = (array) Config::get('addons.hooks', []);
             // 初始化钩子
+            $new_hooks = [];
             foreach ($hooks as $key => $values) {
                 if (is_string($values)) {
                     $values = explode(',', $values);
@@ -110,19 +111,13 @@ class Service extends \think\Service
 
                 $key = rtrim($key, 'Hook'); // 默认不带Hook
                 $key_r = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $key), "_"));
-                $hooks[$key_r] = array_filter(array_map(function ($v) use ($key) {
-                    //return [get_addons_class($v), $key];
+
+                $new_hooks[$key_r] = array_filter(array_map(function ($v) use ($key) {
                     return [get_addons_class($v), $key.'Hook']; // 默认不带Hook
                 }, $values));
             }
+            $hooks = $new_hooks;
             Cache::set('hooks', $hooks);
-        }
-        
-        //如果在插件中有定义 AddonsInit，则直接执行
-        if (isset($hooks['AddonsInit'])) {
-            foreach ($hooks['AddonsInit'] as $k => $v) {
-                Event::trigger('AddonsInit', $v);
-            }
         }
         Event::listenEvents($hooks);
     }
