@@ -57,23 +57,6 @@ if (!function_exists('hook')) {
     }
 }
 
-if (!function_exists('get_addons_info')) {
-    /**
-     * 读取插件的基础信息
-     * @param string $name 插件名
-     * @return array
-     */
-    function get_addons_info($name)
-    {
-        $addon = get_addons_instance($name);
-        if (!$addon) {
-            return [];
-        }
-
-        return $addon->getInfo();
-    }
-}
-
 if (!function_exists('get_addons_instance')) {
     /**
      * 获取插件的单例
@@ -169,6 +152,34 @@ if (!function_exists('addons_url')) {
         }
 
         return Route::buildUrl("@addons/{$addons}/{$controller}/{$action}", $param)->suffix($suffix)->domain($domain);
+    }
+}
+
+if (!function_exists('get_addons_info')) {
+    /**
+     * 读取插件的基础信息
+     * @param string $name 插件名
+     * @param $type string 插件类型， template 或其他
+     * @param $module string 所属模块
+     * @return array
+     */
+    function get_addons_info($name, $type='addon', $module='index')
+    {
+        if ($type=='addon') {
+            $addon = get_addons_instance($name);
+            if (!$addon) {
+                return [];
+            }
+
+            return $addon->getInfo();
+        } else {
+            // 获取模板说明
+            $info_file = config('cms.tpl_path').$module.DIRECTORY_SEPARATOR.$name.DIRECTORY_SEPARATOR. 'info.ini';
+            if (!is_file($info_file)) {
+                return [];
+            }
+            return parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+        }
     }
 }
 
