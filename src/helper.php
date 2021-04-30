@@ -238,7 +238,10 @@ if (!function_exists('get_addons_info_all')) {
             foreach ($addons as $key => $value) {
                 $name = basename($value);
                 $info = get_addons_info($name);
-                if (!empty($info)) {
+                if (!isset($info['type'])) {
+                    continue;
+                }
+                if (!empty($info) && $info['type']==$type) {
                     $data[$name] = $info;
                 }
             }
