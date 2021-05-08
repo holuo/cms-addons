@@ -174,7 +174,6 @@ abstract class Addons
         }
 
         $temp_arr = \app\admin\model\App::where(['name'=>$this->name])->value('config');
-        $temp_arr = json_decode($temp_arr, true);
         if (empty($temp_arr)) {
             $config_file = $this->addon_path . 'config.php';
             if (is_file($config_file)) {
