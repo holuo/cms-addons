@@ -165,20 +165,20 @@ if (!function_exists('get_addons_info')) {
      */
     function get_addons_info($name, $type='addon', $module='index')
     {
-        if ($type=='addon') {
-            $addon = get_addons_instance($name);
-            if (!$addon) {
-                return [];
-            }
-
-            return $addon->getInfo();
-        } else {
+        if ($type=='template') {
             // 获取模板说明
             $info_file = config('cms.tpl_path').$module.DIRECTORY_SEPARATOR.$name.DIRECTORY_SEPARATOR. 'info.ini';
             if (!is_file($info_file)) {
                 return [];
             }
             return parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+        } else {
+            $addon = get_addons_instance($name);
+            if (!$addon) {
+                return [];
+            }
+
+            return $addon->getInfo();
         }
     }
 }
