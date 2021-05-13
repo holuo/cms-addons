@@ -393,55 +393,93 @@ class Cloud
      */
     public function enable($name)
     {
-        $appPathInstall = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install'.DIRECTORY_SEPARATOR;
+        // 插件install文件夹路径
+        $installPath = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install'.DIRECTORY_SEPARATOR;
 
         $installFile = [];
         $installDir = [];
-        if (is_dir($appPathInstall)) { // 复制安装目录到指定文件夹
-            $list = Dir::instance()->getList($appPathInstall);
+        if (is_dir($installPath)) { // 复制安装目录到指定文件夹
+            $list = Dir::instance()->getList($installPath);
             if (!empty($list)) {
                 try {
                     foreach ($list as $key=>$value) {
-                        if ('app'==$value || 'template'==$value) { // php 代码复制
-                            $listArr = Dir::instance()->rglob($appPathInstall. $value . DIRECTORY_SEPARATOR . '*', GLOB_BRACE);
-                            if (empty($listArr)) {
-                                continue;
-                            }
-                            foreach ($listArr as $k=>$v) { // 判断文件是否存在，是否有写入权限
-                                if (is_file($v)) {
-                                    $newFile = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);
-                                    if (file_exists($newFile)) {
-                                        throw new AddonsException(lang('%s,existed',[$newFile]));
-                                    }
-                                    $installFile[] = $newFile; // 记录安装的文件，出错回滚
-                                } else if (is_dir($v) && !is_writable($v)) {
-                                    throw new AddonsException(lang('%s,Not writable', $v));
-                                }
-                            }
-                            $bl = Dir::instance()->copyDir($appPathInstall. $value . DIRECTORY_SEPARATOR, base_path());
-                            if ($bl===false) {
-                                throw new AddonsException(lang('%s copy to %s fails',[$appPathInstall. $value . DIRECTORY_SEPARATOR,base_path()]));
-                            }
-                        } else if ('static'==$value) { // 静态文件 代码复制
-                            $listArr = Dir::instance()->rglob($appPathInstall. $value . DIRECTORY_SEPARATOR . '*', GLOB_BRACE);
+                        // 当前插件文件夹/install/app(template、static)
+                        $installPathDir = $installPath. $value . DIRECTORY_SEPARATOR;
+                        if ('app'==$value) { // php 代码复制
+                            $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
                             if (empty($listArr)) {
                                 continue;
                             }
 
+                            foreach ($listArr as $k=>$v) {
+                                $newFile = str_replace($installPathDir, base_path(), $v);
+                                if (is_file($v) && file_exists($newFile)) {
+                                    throw new AddonsException(lang('%s,existed',[$newFile]));
+                                }
+                                if (is_file($v)) {
+                                    $installFile[] = $newFile; // 记录文件
+                                }
+                            }
+
+                            // 复制目录
+                            $bl = Dir::instance()->copyDir($installPathDir, base_path());
+                            if ($bl===false) {
+                                throw new AddonsException(lang('%s copy to %s fails',[$installPathDir,base_path()]));
+                            }
+                        } else if ('template'==$value) { // 复制到模板
+                            $listArr = Dir::instance()->getList($installPathDir);
+                            $site = app('cache')->get('site');
+
+                            foreach ($listArr as $k=>$v) {
+                                if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
+                                    continue;
+                                }
+
+                                $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+
+                                // 获取插件安装文件模块目录下的所有文件
+                                $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
+                                // 判断是否已经存在该文件
+                                $temp = Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
+                                if (empty($temp)) {
+                                    continue;
+                                }
+                                foreach ($temp as $item) {
+                                    $newFile = str_replace($temp_installPathDir, $themePath, $item);
+                                    if (is_file($item) && file_exists($newFile)) {
+                                        throw new AddonsException(lang('%s,existed',[$newFile]));
+                                    }
+                                    if (is_file($v)) {
+                                        $installFile[] = $newFile; // 记录文件
+                                    }
+                                }
+                                // end 判断是否已经存在该文件 结束
+
+                                // 复制目录
+                                $bl = Dir::instance()->copyDir($temp_installPathDir, $themePath);
+                                if ($bl===false) {
+                                    throw new AddonsException(lang('%s copy to %s fails',[$temp_installPathDir,$themePath]));
+                                }
+                            }
+                        } else if ('static'==$value) { // 静态文件 代码复制
+                            $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
+                            if (empty($listArr)) {
+                                continue;
+                            }
                             $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
                             if (!is_writable($addonsStatic)) {
                                 throw new AddonsException(lang('%s,Not writable', [$addonsStatic]));
                             }
                             if (is_dir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
-                                throw new AddonsException(lang('%s,existed', [$addonsStatic]));
+                                throw new AddonsException(lang('%s,existed', [$addonsStatic.DIRECTORY_SEPARATOR.$name]));
                             }
                             if (!@mkdir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
                                 throw new AddonsException(lang('Failed to create "%s" folder',[$addonsStatic.DIRECTORY_SEPARATOR.$name]));
                             }
                             $installDir[] = $addonsStatic.DIRECTORY_SEPARATOR.$name; // 记录安装的文件，出错回滚
-                            $bl = Dir::instance()->copyDir($appPathInstall. $value . DIRECTORY_SEPARATOR, $addonsStatic.DIRECTORY_SEPARATOR.$name);
+                            $bl = Dir::instance()->copyDir($installPathDir, $addonsStatic.DIRECTORY_SEPARATOR.$name);
                             if ($bl===false) {
-                                throw new AddonsException(lang('%s copy to %s fails',[$appPathInstall. $value . DIRECTORY_SEPARATOR,$addonsStatic.DIRECTORY_SEPARATOR.$name]));
+                                throw new AddonsException(lang('%s copy to %s fails',[$installPathDir,$addonsStatic.DIRECTORY_SEPARATOR.$name]));
                             }
                         }
                     }
@@ -478,22 +516,23 @@ class Cloud
      */
     public function disable($name)
     {
-        $appPathInstall = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install'.DIRECTORY_SEPARATOR;
+        $installPath = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install'.DIRECTORY_SEPARATOR;
         $dirArr = [];
         $fileArr = [];
         $static = [];
-        if (is_dir($appPathInstall)) { // 找出已安装的目录，并判断权限
-            $list = Dir::instance()->getList($appPathInstall);
+        if (is_dir($installPath)) { // 找出已安装的目录，并判断权限
+            $list = Dir::instance()->getList($installPath);
             if (!empty($list)) {
                 foreach ($list as $key=>$value) {
-                    if ('app'==$value || 'template'==$value) { // php 代码复制
-                        $listArr = Dir::instance()->rglob($appPathInstall. $value . DIRECTORY_SEPARATOR . '*', GLOB_BRACE);
+                    $installPathDir = $installPath. $value . DIRECTORY_SEPARATOR;
+                    if ('app'==$value) { // php 代码复制
+                        $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
                         if (empty($listArr)) {
                             continue;
                         }
                         foreach ($listArr as $k=>$v) { // 判断文件是否存在，是否有写入权限
                             if (is_file($v)) {
-                                $newFile = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);
+                                $newFile = str_replace($installPathDir,base_path(),$v);
                                 if (!is_writable($newFile)) {
                                     throw new AddonsException(lang('%s,File has no permission to write',[$newFile]));
                                 }
@@ -502,15 +541,46 @@ class Cloud
                                 if (!is_writable($v)) {
                                     throw new AddonsException(lang('%s,File has no permission to write',[$v]));
                                 }
-                                $dirArr[] = str_replace($appPathInstall. $value . DIRECTORY_SEPARATOR,base_path(),$v);;
+                                $dirArr[] = str_replace($installPathDir,base_path(),$v);;
                             }
                         }
-                    } else if ('static'==$value) { // 静态文件 代码复制
-                        $listArr = Dir::instance()->rglob($appPathInstall. $value . DIRECTORY_SEPARATOR . '*', GLOB_BRACE);
-                        if (empty($listArr)) {
-                            continue;
-                        }
+                    } else if ('template'==$value) { // 静态文件 代码复制
+                        $listArr = Dir::instance()->getList($installPathDir);
+                        $site = app('cache')->get('site');
 
+                        foreach ($listArr as $k=>$v) {
+                            if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
+                                continue;
+                            }
+
+                            // 模板主题路径
+                            $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+
+                            // 获取插件安装文件模块目录下的所有文件
+                            $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
+                            // 判断是否已经存在该文件
+                            $temp = Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
+                            if (empty($temp)) {
+                                continue;
+                            }
+                            foreach ($temp as $item) {
+                                if (is_file($item)) {
+                                    $newFile = str_replace($temp_installPathDir, $themePath, $item);
+                                    if (!is_writable($newFile)) {
+                                        throw new AddonsException(lang('%s,File has no permission to write',[$newFile]));
+                                    }
+                                    $fileArr[] = $newFile;
+                                } else if (is_dir($item)) {
+                                    $newFile = str_replace($temp_installPathDir, $themePath, $item);
+                                    if (!is_writable($item)) {
+                                        throw new AddonsException(lang('%s,File has no permission to write',[$item]));
+                                    }
+                                    $dirArr[] = $newFile;
+                                }
+                            }
+                            // end 判断是否已经存在该文件 结束
+                        }
+                    } else if ('static'==$value) { // 静态文件 代码复制
                         $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
                         if (!is_writable($addonsStatic)) {
                             throw new AddonsException(lang('%s,Not writable', [$addonsStatic]));
@@ -520,7 +590,6 @@ class Cloud
                 }
             }
         }
-
         if (!empty($fileArr)) {
             foreach ($fileArr as $key=>$value) {
                 @unlink($value);
@@ -528,7 +597,7 @@ class Cloud
         }
         if (!empty($dirArr)) {
             foreach ($dirArr as $key=>$value) {
-                @rmdir($value);
+                @rmdir($value); // 只删除空的目录
             }
         }
         if (!empty($static)) {
