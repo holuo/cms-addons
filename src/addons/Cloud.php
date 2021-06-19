@@ -541,7 +541,7 @@ class Cloud
                                 if (!is_writable($v)) {
                                     throw new AddonsException(lang('%s,File has no permission to write',[$v]));
                                 }
-                                $dirArr[] = str_replace($installPathDir,base_path(),$v);;
+                                $dirArr[] = str_replace($installPathDir,base_path(),$v);
                             }
                         }
                     } else if ('template'==$value) { // 静态文件 代码复制

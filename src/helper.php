@@ -295,24 +295,24 @@ if (!function_exists('set_addons_info')) {
 if (!function_exists('get_addons_config')) {
     /**
      * 获取插件配置
-     * @param $type
-     * @param $name
-     * @param string $module
-     * @param bool $complete
+     * @param string $type 类型
+     * @param string $name 标识
+     * @param string $module 模块
+     * @param bool $complete true-获取所有结构数组，false-获取配置值
      * @return array|mixed|null
      */
     function get_addons_config($type, $name, $module='', $complete=false)
     {
         if ($type=='template') {
             $k = "template_{$name}_config";
-            $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.json';
+            $config_file = get_template_path($module) . 'config.json';
         } else {
             $k = "addon_{$name}_config";
             $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
         }
 
-        $config = app()->config->get($k, []);
-        if ($config) {
+        $config = app()->cache->get($k);
+        if ($config && $complete===false && app()->isDebug()!==true) {
             return $config;
         }
 
@@ -330,17 +330,25 @@ if (!function_exists('get_addons_config')) {
             if ($complete) {
                 return $temp_arr;
             }
+            $config = [];
             foreach ($temp_arr as $key => $value) {
-                foreach ($value['item'] as $kk=>$v) {
-                    if (in_array($v['type'], ['checkbox','selects'])) {
-                        $config[$key][$kk] = explode(',', $v['value']);
+                if (!empty($value['item'])) {
+                    foreach ($value['item'] as $kk=>$v) {
+                        if (in_array($v['type'], ['checkbox','selects'])) {
+                            $config[$key][$kk] = explode(',', $v['value']);
+                        } else {
+                            $config[$key][$kk] = $v['value'];
+                        }
+                    }
+                } else {
+                    if (in_array($value['type'], ['checkbox','selects'])) {
+                        $config[$key] = explode(',', $value['value']);
                     } else {
-                        $config[$key][$kk] = $v['value'];
+                        $config[$key] = $value['value'];
                     }
                 }
             }
-            unset($temp_arr);
-            app()->config->set($config, $k);
+            app()->cache->tag('get_addons_config')->set($k, $config);
         }
         return $config;
     }

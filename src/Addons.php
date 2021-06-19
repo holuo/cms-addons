@@ -188,11 +188,19 @@ abstract class Addons
                 return $temp_arr;
             }
             foreach ($temp_arr as $key => $value) {
-                foreach ($value['item'] as $kk=>$v) {
-                    if (in_array($v['type'], ['checkbox','selects'])) {
-                        $config[$key][$kk] = explode(',', $v['value']);
+                if (!empty($value['item'])) {
+                    foreach ($value['item'] as $kk=>$v) {
+                        if (in_array($v['type'], ['checkbox','selects'])) {
+                            $config[$key][$kk] = explode(',', $v['value']);
+                        } else {
+                            $config[$key][$kk] = $v['value'];
+                        }
+                    }
+                } else {
+                    if (in_array($value['type'], ['checkbox','selects'])) {
+                        $config[$key] = explode(',', $value['value']);
                     } else {
-                        $config[$key][$kk] = $v['value'];
+                        $config[$key] = $value['value'];
                     }
                 }
             }
