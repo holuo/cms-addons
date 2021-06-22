@@ -74,7 +74,8 @@ abstract class Controller
     // 初始化
     protected function initialize()
     {
-
+        // 加载当前插件语言包
+        $this->app->lang->load($this->addon_path.'lang'.DIRECTORY_SEPARATOR.$this->app->lang->getLangset().'.php');
     }
 
     /**
