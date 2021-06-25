@@ -227,18 +227,25 @@ class Cloud
                         throw new AddonsException($dir->error);
                     }
                 } else {
+                    if ($update===true && $info['status']==1) { // 判断是否已经启用，先禁用
+                        $this->disable($info['name']);
+                    } else if ($update) { // 更新的情况下，清理里面的文件再覆盖。
+                        $this->uninstall($info);
+                    }
+
                     // 创建插件目录
                     @mkdir($addonsPath . $info['name'], 0755, true);
                     $installDirArr[] = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
                     $zipFile->extractTo($addonsPath . $info['name'] . DIRECTORY_SEPARATOR);
 
-                     if ($update===true && $info['status']==1) { // 判断是否已经启用，先禁用
-                         $this->disable($info['name']);
-                     }
-
                     $obj = get_addons_instance($info['name']);
                     if (!empty($obj)) { // 调用插件安装
                         $obj->install();
+                        if ($update) { // 更新的情况下
+                            if (method_exists($obj,'upgrade')) {
+                                $obj->upgrade();
+                            }
+                        }
                     }
 
                     // 调用插件启用方法

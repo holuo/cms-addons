@@ -35,6 +35,8 @@ class Service extends \think\Service
         $this->loadService();
         // 绑定插件容器
         $this->app->bind('addons', Service::class);
+        // 插件初始化
+        Event::trigger('addons_init');
     }
 
     public function boot()
@@ -119,6 +121,13 @@ class Service extends \think\Service
             $hooks = $new_hooks;
             Cache::set('hooks', $hooks);
         }
+
+        //如果在插件中有定义 AddonsInit，则直接执行
+//        if (isset($hooks['addons_init'])) {
+//            foreach ($hooks['addons_init'] as $k => $v) {
+//                Event::listen('addons_init', $v);
+//            }
+//        }
         Event::listenEvents($hooks);
     }
 
