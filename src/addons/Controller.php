@@ -7,6 +7,7 @@ use think\App;
 use think\helper\Str;
 use think\facade\Config;
 use think\facade\View;
+use think\view\driver\Think;
 
 abstract class Controller
 {
@@ -58,7 +59,8 @@ abstract class Controller
         $site = array_merge($site, $this->cache->get('site'));
 
         // 模板
-        $this->view = clone View::engine('Think');
+        // $this->view = clone View::engine('Think');
+        $this->view = new Think($app, config('view'));
         $this->view->config([
             'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR,
             'tpl_replace_string'=>[
