@@ -11,6 +11,9 @@ use think\view\driver\Think;
 
 abstract class Controller
 {
+    // success、error、result
+    use \app\common\library\Jump;
+
     // app 容器
     protected $app;
     // 请求对象
