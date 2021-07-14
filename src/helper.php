@@ -215,7 +215,7 @@ if (!function_exists('get_addons_info_all')) {
                     $tempArr['name'] = basename($v);
 
                     // 获取预览图
-                    $previewPath = public_path('static'.DIRECTORY_SEPARATOR.$name.DIRECTORY_SEPARATOR.$tempArr['name']).'preview.jpg';
+                    $previewPath = config('cms.tpl_static').$name.DIRECTORY_SEPARATOR.$tempArr['name'].DIRECTORY_SEPARATOR.'preview.jpg';
                     if (is_file($previewPath)) {
                         $tempArr['image'] = str_replace('\\', '/', '/' . str_replace(public_path(), "", $previewPath));
                     } else {
