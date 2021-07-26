@@ -64,7 +64,7 @@ class Service extends \think\Service
                     foreach ($val['rule'] as $k => $rule) {
                         [$addon, $controller, $action] = explode('/', $rule);
                         $rules[$k] = [
-                            'addons'        => $addon,
+                            'addon'        => $addon,
                             'controller'    => $controller,
                             'action'        => $action,
                             'indomain'      => 1,
@@ -85,7 +85,7 @@ class Service extends \think\Service
                         ->name($key)
                         ->completeMatch(true)
                         ->append([
-                            'addons' => $addon,
+                            'addon' => $addon,
                             'controller' => $controller,
                             'action' => $action
                         ]);
