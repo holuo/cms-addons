@@ -56,10 +56,9 @@ abstract class Controller
         $this->addon_info = "addon_{$this->name}_info";
 
         // 初始化站点配置信息
-        \app\admin\model\routine\Config::initConfig();
+        $site = \app\admin\model\routine\Config::initConfig();
         $site['root_domain'] = $this->request->baseFile(true); // 带域名
         $site['root_file'] = trim($this->request->baseFile(), '/');
-        $site = array_merge($site, $this->cache->get('site'));
 
         // 模板
         // $this->view = clone View::engine('Think');
@@ -71,6 +70,7 @@ abstract class Controller
                 '__libs__'=>$site['cdn'].'/static/libs'
             ]
         ]);
+        $this->assign('site', $site);
 
         // 控制器初始化
         $this->initialize();
