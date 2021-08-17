@@ -111,7 +111,8 @@ class Service extends \think\Service
                     $values = (array) $values;
                 }
 
-                $key = rtrim($key, 'Hook'); // 默认不带Hook
+//                $key = rtrim($key, 'Hook'); // 默认不带Hook
+                $key = substr($key,0,strlen($key)-4); // 默认不带Hook
                 $key_r = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $key), "_"));
 
                 $new_hooks[$key_r] = array_filter(array_map(function ($v) use ($key) {
