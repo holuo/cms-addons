@@ -358,6 +358,9 @@ class Cloud
                     $obj->install();
                 }
 
+                // 导入数据库
+                $this->importSql($_info['name']);
+
                 // 调用插件启用方法
                 $this->enable($_info['name']);
             }
