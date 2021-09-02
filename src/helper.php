@@ -305,12 +305,12 @@ if (!function_exists('get_addons_config')) {
     {
         if ($type=='template') {
             $k = "template_{$name}_config";
-            $config_file = get_template_path($module) . 'config.json';
+            $config_file = config('cms.tpl_path'). $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.json';
         } else {
             $k = "addon_{$name}_config";
             $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
         }
-
+        
         $config = app()->cache->get($k);
         if ($config && $complete===false && app()->isDebug()!==true) {
             return $config;
