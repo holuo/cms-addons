@@ -317,14 +317,15 @@ if (!function_exists('get_addons_config')) {
         }
 
         // 优先从数据库里取
+        $arr1 = $arr2 = [];
         $temp_arr = \app\admin\model\App::where(['name'=>$name])->value('config');
-        if (empty($temp_arr)) {
-            if (is_file($config_file)) {
-                $temp_arr = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
-            }
-        } else {
-            $temp_arr = json_decode($temp_arr, true);
+        if (!empty($temp_arr)) {
+            $arr1 = json_decode($temp_arr, true);
         }
+        if (is_file($config_file)) {
+            $arr2 = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
+        }
+        $temp_arr = array_merge($arr1, $arr2);
 
         if (!empty($temp_arr)) {
             if ($complete) {
