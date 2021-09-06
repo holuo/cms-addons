@@ -325,7 +325,7 @@ if (!function_exists('get_addons_config')) {
         if (is_file($config_file)) {
             $arr2 = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
         }
-        $temp_arr = array_merge($arr1, $arr2);
+        $temp_arr = $arr1+$arr2;
 
         if (!empty($temp_arr)) {
             if ($complete) {
