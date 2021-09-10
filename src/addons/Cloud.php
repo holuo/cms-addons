@@ -6,6 +6,7 @@ namespace think\addons;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
+use PhpZip\Util\Iterator\IgnoreFilesRecursiveFilterIterator;
 use think\Exception;
 use think\facade\Cache;
 use think\facade\Config;
@@ -32,10 +33,10 @@ class Cloud
      * @return mixed
      * @throws AddonsException
      */
-    public function checkUpgrade($v)
+    public function checkUpgrade($v, $p)
     {
         return $this->getRequest(['url'=>'cms/upgrade', 'method'=>'GET', 'option'=>[
-            'query'=>['v'=>$v]
+            'query'=>['v'=>$v,'p'=>$p]
         ]]);
     }
 
@@ -122,18 +123,94 @@ class Cloud
     }
 
     /**
+     * 更新CMS
+     * @param $v
+     * @param string $p
+     * @return bool
+     */
+    public function upgradeCms($v, $p = '')
+    {
+        try {
+            $client = $this->getClient();
+            $response = $client->request('get', 'cms/download', ['query' => ['v'=>$v, 'p'=>$p]]);
+            $content = $response->getBody()->getContents();
+        }  catch (ClientException $exception) {
+            throw new AddonsException($exception->getMessage());
+        }
+
+        if (substr($content, 0, 1) === '{') {
+            // json 错误信息
+            $json = json_decode($content, true);
+            throw new AddonsException($json['msg']??lang('Server returns abnormal data'));
+        }
+
+        // 保存路径
+        $name = $v.'_'.$p;
+        $zip = $this->getCloudTmp().$name.'.zip';
+        if (file_exists($zip)) {
+            @unlink($zip);
+        }
+
+        if ($w = fopen($zip, 'w')) {
+            fwrite($w, $content);
+            fclose($w);
+
+            $dir = Dir::instance();
+            try {
+                // 解压
+                $unzipPath = $this->unzip($name);
+
+                // 备份cms
+                $ignoreFiles = ['runtime/admin','runtime/cache','runtime/index','runtime/install','runtime/session','runtime/storage','.git','.idea']; // 忽略
+                $backup = runtime_path().'backup'.DIRECTORY_SEPARATOR;
+                @mkdir($backup);
+                $backupZip = $backup.config('ver.cms_version').'.zip';
+                $ignoreIterator = new IgnoreFilesRecursiveFilterIterator(new \RecursiveDirectoryIterator(root_path()),$ignoreFiles);
+                (new \PhpZip\ZipFile())
+                    ->addFilesFromIterator($ignoreIterator) // 包含下级，递归
+                    ->saveAsFile($backupZip)
+                    ->close();
+
+                if (is_file($unzipPath.'upgrade.sql')) {
+                    $this->exportSql($backup.config('ver.cms_version').'.sql');
+                    create_sql($unzipPath.'upgrade.sql');
+                }
+
+                // 移动文件，解压目录移动到addons
+                $dir->movedFile($unzipPath, root_path());
+                // 清理
+                $this->clearInstallDir([],[$zip]);
+            } catch (\Exception $exception) {
+                $this->clearInstallDir([$this->getCloudTmp().$name.DIRECTORY_SEPARATOR],[$zip]);
+                throw new AddonsException($exception->getMessage());
+            }
+            return true;
+        }
+        throw new AddonsException(lang('No permission to save').'【'.$zip.'】');
+    }
+
+    /**
      * 给定目录路径打包下载
      * @param $path
+     * @param string $savePath 为空-直接输出到浏览器，路径-保存到路径
      * @throws AddonsException
      */
-    public function pack($path)
+    public function pack($path, $savePath = '')
     {
         $zipFile = new \PhpZip\ZipFile();
         try{
-            $zipFile
-                ->addDirRecursive($path) // 包含下级，递归
-                //  ->saveAsFile(runtime_path().'a.zip') // 保存
-                ->outputAsAttachment(md5($path).'.zip'); // 直接输出到浏览器
+            if ($savePath) {
+                $dir = runtime_path().'backup'.DIRECTORY_SEPARATOR;
+                @mkdir($dir);
+                $zipFile
+                    ->addDirRecursive($path) // 包含下级，递归
+                    ->saveAsFile($savePath)
+                    ->close();
+            } else {
+                $zipFile
+                    ->addDirRecursive($path) // 包含下级，递归
+                    ->outputAsAttachment(md5($path).'.zip'); // 直接输出到浏览器
+            }
         } catch(Exception $e){
             $zipFile->close();
             throw new AddonsException($e->getMessage());
@@ -772,7 +849,7 @@ class Cloud
     {
         try {
             $client = $this->getClient();
-            $response = $client->request('get', 'appcenter/download', ['query' => ['name'=>$name, 'version'=>$version, 'cms_version'=>config('cms.cms_version')]]);
+            $response = $client->request('get', 'appcenter/download', ['query' => ['name'=>$name, 'version'=>$version, 'cms_version'=>config('ver.cms_version')]]);
             $content = $response->getBody()->getContents();
         }  catch (ClientException $exception) {
             throw new AddonsException($exception->getMessage());
@@ -875,6 +952,43 @@ class Cloud
 
         // 导入数据库
         create_sql($sql);
+        return true;
+    }
+
+    /**
+     * 数据库备份
+     * @param $filename
+     * @return bool
+     */
+    public function exportSql($filename)
+    {
+        $db = app('db');
+        $list = $db->query('SHOW TABLE STATUS');
+
+        $fp = @fopen($filename, 'w');
+        foreach ($list as $key=>$value) {
+            $result = $db->query("SHOW CREATE TABLE `{$value['Name']}`");
+            $sql = "\n\nDROP TABLE IF EXISTS `{$value['Name']}`;\n";
+            $sql .= trim($result[0]['Create Table']) . ";\n\n";
+            if (false === @fwrite($fp, $sql)) {
+                return false;
+            }
+            //备份数据记录
+            $result = $db->query("SELECT * FROM `{$value['Name']}`");
+            foreach ($result as $row) {
+
+                foreach($row as &$v){
+                    //将数据中的单引号转义，否则还原时会出错
+                    $v = addslashes($v);
+                }
+
+                $sql = "INSERT INTO `{$value['Name']}` VALUES ('" . implode("', '", $row) . "');\n";
+                if (false === @fwrite($fp, $sql)) {
+                    return false;
+                }
+            }
+        }
+        @fclose($fp);
         return true;
     }
 
