@@ -120,7 +120,7 @@ class Service extends \think\Service
                 }, $values));
             }
             $hooks = $new_hooks;
-            Cache::set('hooks', $hooks);
+            Cache::tag('addons')->set('hooks', $hooks);
         }
 
         //如果在插件中有定义 AddonsInit，则直接执行

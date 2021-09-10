@@ -145,6 +145,7 @@ abstract class Addons
     final public function getInfo()
     {
         $info = Config::get($this->addon_info, []);
+        $info = app()->cache->get($this->addon_info);
         if ($info) {
             return $info;
         }
@@ -158,8 +159,13 @@ abstract class Addons
             $_info['url'] = (string) addons_url();
             $info = array_merge($_info, $info);
         }
-        Config::set($info, $this->addon_info);
 
+        $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$this->name])->find();
+        if (!empty($one)) {
+            $info = $one + $info;
+        }
+
+        app()->cache->tag('addons')->set($this->addon_info, $info);
         return isset($info) ? $info : [];
     }
 

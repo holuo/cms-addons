@@ -166,12 +166,25 @@ if (!function_exists('get_addons_info')) {
     function get_addons_info($name, $type='addon', $module='index')
     {
         if ($type=='template') {
+            $addon_info = "addon_{$name}_info";
+            $info = app()->cache->get($addon_info);
+            if (!empty($info)) {
+                return $info;
+            }
+
             // 获取模板说明
             $info_file = config('cms.tpl_path').$module.DIRECTORY_SEPARATOR.$name.DIRECTORY_SEPARATOR. 'info.ini';
             if (!is_file($info_file)) {
                 return [];
             }
-            return parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+            $info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+
+            $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$name])->find();
+            if (!empty($one)) {
+                $info = $one + $info;
+            }
+            app()->cache->tag('addons')->set($addon_info, $info);
+            return $info;
         } else {
             $addon = get_addons_instance($name);
             if (!$addon) {
@@ -246,7 +259,7 @@ if (!function_exists('get_addons_info_all')) {
                 }
             }
         }
-        app()->cache->set('get_addons_info_all_'.$type, $data);
+        app()->cache->tag('addons')->set('get_addons_info_all_'.$type, $data);
         return $data;
     }
 }
