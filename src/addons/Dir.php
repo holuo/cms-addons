@@ -43,7 +43,9 @@ class Dir
     {
         if ($path && substr($path, -1) != "/")
             $path .= "/";
-        $this->listFile($path, $pattern);
+        if ($path) {
+            $this->listFile($path, $pattern);
+        }
     }
 
     /**
@@ -71,7 +73,15 @@ class Dir
                 $dir[$i]['ctime'] = filectime($file);
                 $dir[$i]['size'] = filesize($file);
                 $dir[$i]['type'] = filetype($file);
-                $dir[$i]['ext'] = is_file($file) ? strtolower(substr(strrchr(basename($file), '.'), 1)) : '';
+
+                $ext = '';
+                if (is_file($file)) {
+                    $ext = strrchr(basename($file), '.');
+                    $ext = $ext ? substr($ext, 1) : '';
+                    $ext = $ext ? strtolower($ext) : '';
+                }
+                $dir[$i]['ext'] = $ext;
+
                 $dir[$i]['mtime'] = filemtime($file);
                 $dir[$i]['isDir'] = is_dir($file);
                 $dir[$i]['isFile'] = is_file($file);
