@@ -36,7 +36,7 @@ class Cloud
     public function checkUpgrade($v, $p)
     {
         return $this->getRequest(['url'=>'cms/upgrade', 'method'=>'GET', 'option'=>[
-            'query'=>['v'=>$v,'p'=>$p]
+            'query'=>['v'=>$v,'p'=>$p, 'type'=>2, 'domain'=>request()->host(), 'ip'=>request()->ip(), 'version'=>$v]
         ]]);
     }
 
