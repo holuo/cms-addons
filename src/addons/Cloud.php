@@ -536,7 +536,7 @@ class Cloud
                         }
                     } else if ('template'==$value) { // 复制到模板
                         $listArr = Dir::instance()->getList($installPathDir);
-                        $site = app('cache')->get('site');
+                        $site = site();
 
                         foreach ($listArr as $k=>$v) {
                             if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
@@ -655,7 +655,7 @@ class Cloud
                     }
                 } else if ('template'==$value) { // 静态文件 代码复制
                     $listArr = Dir::instance()->getList($installPathDir);
-                    $site = app('cache')->get('site');
+                    $site = site();
 
                     foreach ($listArr as $k=>$v) {
                         if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
