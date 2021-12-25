@@ -178,6 +178,12 @@ class Service extends \think\Service
         $config = Config::get('addons');
         // 读取插件目录及钩子列表
         $base = get_class_methods("\\think\\Addons");
+        // 获取禁用的app
+        $appArr = Cache::get('app_status_cache');
+        if (empty($appArr)) {
+            $appArr = \think\facade\Db::name('app')->where('status','<>',1)->column('name');
+            Cache::tag('addons')->set('app_status_cache',$appArr, 86400);
+        }
         // 读取插件目录中的php文件
         foreach (glob($this->getAddonsPath() . '*/*.php') as $addons_file) {
             // 格式化路径信息
@@ -185,7 +191,7 @@ class Service extends \think\Service
             // 获取插件目录名
             $name = pathinfo($info['dirname'], PATHINFO_FILENAME);
             // 找到插件入口文件
-            if (strtolower($info['filename']) === $name) {
+            if (strtolower($info['filename']) === $name && !in_array($name,$appArr)) {
                 // 读取出所有公共方法
                 $methods = (array)get_class_methods("\\addons\\" . $name . "\\" . $info['filename']);
                 // 跟插件基类方法做比对，得到差异结果
