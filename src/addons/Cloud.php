@@ -509,19 +509,19 @@ class Cloud
                     }
 
                     if ('app'==$value || 'public'==$value) { // php 代码复制
+
+                        // 获取安装的目录文件是否存在
                         $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
                         if (empty($listArr)) {
                             continue;
                         }
 
+                        // 判断是否已经存在该文件了，存在就报错
                         $tmpFiles = [];
                         foreach ($listArr as $k=>$v) {
                             $newFile = str_replace($installPathDir, base_path(), $v);
                             if (is_file($v) && file_exists($newFile)) {
                                 $tmpFiles[] = $newFile;
-                            }
-                            if (is_file($v)) {
-                                $installFile[] = $newFile; // 记录文件
                             }
                         }
                         if (!empty($tmpFiles)) {
@@ -547,24 +547,21 @@ class Cloud
 
                             // 获取插件安装文件模块目录下的所有文件
                             $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
+
                             // 判断是否已经存在该文件
                             $temp = Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
                             if (empty($temp)) {
                                 continue;
                             }
-
                             $tmpFiles = [];
                             foreach ($temp as $item) {
                                 $newFile = str_replace($temp_installPathDir, $themePath, $item);
                                 if (is_file($item) && file_exists($newFile)) {
-                                    $tmpFiles[] = $newFile;
-                                }
-                                if (is_file($v)) {
-                                    $installFile[] = $newFile; // 记录文件
+                                    $tmpFiles[] = $newFile; // 记录已存在的文件
                                 }
                             }
                             if (!empty($tmpFiles)) {
-                                $tmpFiles = implode(',', $tmpFiles);
+                                $tmpFiles = implode(',', $tmpFiles);// 报错已存在的文件
                                 throw new AddonsException(lang('%s,existed',[$tmpFiles]));
                             }
 
