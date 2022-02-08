@@ -179,11 +179,19 @@ class Service extends \think\Service
         // 读取插件目录及钩子列表
         $base = get_class_methods("\\think\\Addons");
         // 获取禁用的app
-        $appArr = Cache::get('app_status_cache');
-        if (empty($appArr)) {
-            $appArr = \think\facade\Db::name('app')->where('status','<>',1)->column('name');
-            Cache::tag('addons')->set('app_status_cache',$appArr, 86400);
+        $appArr = [];
+        if ($this->app->http->getName()!='install') {
+            $appArr = Cache::get('app_status_cache');
+            if (empty($appArr)) {
+                try {
+                    $appArr = \think\facade\Db::name('app')->where('status','<>',1)->column('name');
+                    Cache::tag('addons')->set('app_status_cache',$appArr, 86400);
+                } catch (\Exception $exception){
+                    $appArr = [];
+                }
+            }
         }
+
         // 读取插件目录中的php文件
         foreach (glob($this->getAddonsPath() . '*/*.php') as $addons_file) {
             // 格式化路径信息
