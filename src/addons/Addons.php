@@ -1,7 +1,26 @@
 <?php
+/**
+ * +----------------------------------------------------------------------
+ * | think-addons [thinkphp6]
+ * +----------------------------------------------------------------------
+ *  .--,       .--,             | FILE: Addons.php
+ * ( (  \.---./  ) )            | AUTHOR: byron
+ *  '.__/o   o\__.'             | EMAIL: xiaobo.sun@qq.com
+ *     {=  ^  =}                | QQ: 150093589
+ *     /       \                | DATETIME: 2019/11/5 14:47
+ *    //       \\               |
+ *   //|   .   |\\              |
+ *   "'\       /'"_.-~^`'-.     |
+ *      \  _  /--'         `    |
+ *    ___)( )(___               |-----------------------------------------
+ *   (((__) (__)))              | 高山仰止,景行行止.虽不能至,心向往之。
+ * +----------------------------------------------------------------------
+ * | Copyright (c) 2019 http://www.zzstudio.net All rights reserved.
+ * +----------------------------------------------------------------------
+ */
 declare(strict_types=1);
 
-namespace think\addons;
+namespace think;
 
 use think\App;
 use think\helper\Str;
@@ -9,11 +28,8 @@ use think\facade\Config;
 use think\facade\View;
 use think\view\driver\Think;
 
-abstract class Controller
+abstract class Addons
 {
-    // success、error、result
-    use \app\common\library\Jump;
-
     // app 容器
     protected $app;
     // 请求对象
@@ -32,15 +48,6 @@ abstract class Controller
     protected $error = '';
 
     /**
-     * 缓存
-     * @var \think\Cache
-     */
-    protected $cache;
-
-    // 站点配置
-    public $site;
-
-    /**
      * 插件构造函数
      * Addons constructor.
      * @param \think\App $app
@@ -49,28 +56,15 @@ abstract class Controller
     {
         $this->app = $app;
         $this->request = $app->request;
-        $this->cache = $app->cache;
         $this->name = $this->getName();
         $this->addon_path = $app->addons->getAddonsPath() . $this->name . DIRECTORY_SEPARATOR;
         $this->addon_config = "addon_{$this->name}_config";
         $this->addon_info = "addon_{$this->name}_info";
-
-        // 初始化站点配置信息
-        $site = \app\admin\model\routine\Config::initConfig();
-        $site['root_domain'] = $this->request->baseFile(true); // 带域名
-        $site['root_file'] = trim($this->request->baseFile(), '/');
-
-        // 模板
         // $this->view = clone View::engine('Think');
         $this->view = new Think($app, config('view'));
         $this->view->config([
-            'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR,
-            'tpl_replace_string'=>[
-                '__addons__'=>'/static/addons/'.$this->name,
-                '__libs__'=>$site['cdn'].'/static/libs'
-            ]
+            'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR
         ]);
-        $this->assign('site', $site);
 
         // 控制器初始化
         $this->initialize();
@@ -78,10 +72,7 @@ abstract class Controller
 
     // 初始化
     protected function initialize()
-    {
-        // 加载当前插件语言包
-        $this->app->lang->load($this->addon_path.'lang'.DIRECTORY_SEPARATOR.$this->app->lang->getLangset().'.php');
-    }
+    {}
 
     /**
      * 获取插件标识
@@ -153,8 +144,8 @@ abstract class Controller
      */
     final public function getInfo()
     {
-        $info = Config::get($this->addon_info, []);
-        if ($info) {
+        $info = app()->cache->get($this->addon_info);
+        if (!app()->isDebug() && $info) {
             return $info;
         }
 
@@ -173,7 +164,9 @@ abstract class Controller
             $info = $one + $info;
         }
 
-        Config::set($info, $this->addon_info);
+        if (!app()->isDebug()) {
+            app()->cache->tag('addons')->set($this->addon_info, $info);
+        }
 
         return isset($info) ? $info : [];
     }
@@ -190,16 +183,18 @@ abstract class Controller
             return $config;
         }
 
+        $arr1 = $arr2 = [];
+
         $temp_arr = \app\admin\model\App::where(['name'=>$this->name])->value('config');
-        if (empty($temp_arr)) {
-            $config_file = $this->addon_path . 'config.php';
-            if (is_file($config_file)) {
-                $temp_arr = (array)include $config_file;
-            }
-        } else {
-            $temp_arr = json_decode($temp_arr, true);
+        if (!empty($temp_arr)) {
+            $arr1 = json_decode($temp_arr, true);
+        }
+        $config_file = $this->addon_path . 'config.php';
+        if (is_file($config_file)) {
+            $arr2 = (array)include $config_file;
         }
 
+        $temp_arr = $arr1+$arr2;
         if (!empty($temp_arr)) {
             if ($type) {
                 return $temp_arr;
@@ -236,4 +231,10 @@ abstract class Controller
     {
         return $this->error;
     }
+
+    //必须实现安装
+    abstract public function install();
+
+    //必须卸载插件方法
+    abstract public function uninstall();
 }

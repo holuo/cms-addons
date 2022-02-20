@@ -225,24 +225,23 @@ class Cloud
      * 【name：插件标识，version：插件版本信息(array)，type: 应用类型,module:所属模块】
      * ['name'=>'demo','version'=>['verison'=>'1.0.0'],'type'=>'template','module'=>'index']
      * @param array $info 安装的插件信息
+     * @param string $unzipPath 解压的目录
+     * @param string $demodata 1=安装演示数据
      * @return bool
      * @throws AddonsException
      */
-    public function install($info)
+    public function install($info, $unzipPath = '', $demodata = '')
     {
         // 目录权限检测
-        $this->competence($info['type'], $info['name'], $info['module']);
+        $this->competence($info['type'], $info['name'], $info['module']??'');
 
         // 需要删除目录
         $installDirArr = [];
-        $downloadPath = '';
         try {
-            // 下载插件
-            $downloadPath = $this->download($info['name'], $info['version']['version']);
-            // 解压
-            $unzipPath = $this->unzip($info['name']);
-            // 验证应用必要文件与info.ini文件
-            $this->checkIni($info['type'], $unzipPath);
+
+            if (!is_dir($unzipPath)) {
+                $unzipPath = $this->unzip($info['name']);
+            }
 
             $dir = Dir::instance();
             if ($info['type']=='template') {
@@ -267,6 +266,7 @@ class Cloud
                 if ($bl===false) {
                     throw new AddonsException($dir->error);
                 }
+                $demodataFile = $templatePath;
             } else { // 插件、模块
                 $addonsPath = app()->addons->getAddonsPath(); // 插件根目录
 
@@ -284,16 +284,25 @@ class Cloud
 
                 // 导入数据库
                 $this->importSql($info['name']);
-
                 // 调用插件启用方法
                 $this->enable($info['name']);
+
+                $demodataFile = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
+            }
+
+            // 导入演示数据
+            if ($demodata==1) {
+                $demodataFile = $demodataFile.'demodata.sql';
+                if (is_file($demodataFile)) {
+                    create_sql($demodataFile);
+                }
             }
 
         } catch(AddonsException $e) {
-            $this->clearInstallDir($installDirArr,[$downloadPath]);
+            $this->clearInstallDir($installDirArr);
             throw new AddonsException($e->getMessage());
         } catch (Exception $e) {
-            $this->clearInstallDir($installDirArr,[$downloadPath]);
+            $this->clearInstallDir($installDirArr);
             throw new AddonsException($e->getMessage());
         }
         return true;
@@ -304,21 +313,16 @@ class Cloud
      * @param $info
      * @return bool
      */
-    public function upgrade($info)
+    public function upgrade($info, $unzipPath = '', $demodata = '')
     {
         // 目录权限检测
-        $this->competence($info['type'], $info['name'], $info['module'], true);
+        $this->competence($info['type'], $info['name'], $info['module']??'', true);
 
-        // 需要删除目录
-        $installDirArr = [];
-        $downloadPath = '';
         try {
-            // 下载插件
-            $downloadPath = $this->download($info['name'], $info['version']['version']);
-            // 解压
-            $unzipPath = $this->unzip($info['name']);
-            // 验证应用必要文件与info.ini文件
-            $this->checkIni($info['type'], $unzipPath);
+            if (!is_dir($unzipPath)) {
+                $unzipPath = $this->unzip($info['name']);
+            }
+
             $dir = Dir::instance();
 
             if ($info['type']=='template') {
@@ -336,6 +340,8 @@ class Cloud
                 if ($bl===false) {
                     throw new AddonsException($dir->error);
                 }
+
+                $demodataFile = $templatePath;
             } else {
                 $addonsPath = app()->addons->getAddonsPath(); // 插件根目录
 
@@ -352,16 +358,23 @@ class Cloud
                 }
 
                 // 导入数据库
-                $this->importSql($info['name']);
-
+                $this->importSql($info['name'], true);
                 // 调用插件启用方法
                 $this->enable($info['name']);
+
+                $demodataFile = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
+            }
+
+            // 导入演示数据
+            if ($demodata==1) {
+                $demodataFile = $demodataFile.'demodata.sql';
+                if (is_file($demodataFile)) {
+                    create_sql($demodataFile);
+                }
             }
         } catch(AddonsException $e) {
-            $this->clearInstallDir($installDirArr,[$downloadPath]);
             throw new AddonsException($e->getMessage());
         } catch (Exception $e) {
-            $this->clearInstallDir($installDirArr,[$downloadPath]);
             throw new AddonsException($e->getMessage());
         }
         return true;
@@ -371,23 +384,16 @@ class Cloud
      * 本地安装
      * @param string $type 应用类型
      * @param string $file zip压缩位置
+     * @param string $file 是否导入演示数据
      * @return array|false
      * @throws AddonsException
      */
-    public function installLocal($type, $file)
+    public function installLocal($type, $file, $demodata = '')
     {
         $path = dirname($file).DIRECTORY_SEPARATOR;
-        $filename = basename($file, '.zip');
-
-        $zipFile = new \PhpZip\ZipFile();
-        $installDirArr = [];
+        $filename = basename($file).'.zip';
         try {
-            $zipFile->openFile($file);
-            // 解压路径
-            $unzipPath = $path . $filename . DIRECTORY_SEPARATOR;
-            @mkdir($unzipPath);
-            $zipFile->extractTo($unzipPath);
-            $installDirArr[] = $unzipPath;
+            $unzipPath = $file;
 
             // 检查info.ini文件
             $_info = $this->checkIni($type, $unzipPath);
@@ -407,7 +413,6 @@ class Cloud
                 $addonsAppPath = $templatePath . $_info['name'] . DIRECTORY_SEPARATOR;
 
                 @mkdir($addonsAppPath, 0755, true);
-                $installDirArr[] = $addonsAppPath;
 
                 // 移动对应的模板目录
                 $dir = Dir::instance();
@@ -417,18 +422,23 @@ class Cloud
                         throw new AddonsException($dir->error);
                     }
                     @mkdir($staticAppPath, 0755, true);
-                    $installDirArr[] = $staticAppPath;
                 }
                 $bl = $dir->movedFile($unzipPath, $addonsAppPath);
                 if ($bl===false) {
                     throw new AddonsException($dir->error);
                 }
+
+                $demodataFile = $addonsAppPath;
             } else {
                 // 创建插件目录
                 $addonsPath = app()->addons->getAddonsPath(); // 插件根目录
                 @mkdir($addonsPath . $_info['name'], 0755, true);
-                $installDirArr[] = $addonsPath . $_info['name'] . DIRECTORY_SEPARATOR;
-                $zipFile->extractTo($addonsPath . $_info['name'] . DIRECTORY_SEPARATOR);
+                // 移动对应的模板目录
+                $dir = Dir::instance();
+                $bl = $dir->movedFile($unzipPath, $addonsPath . $_info['name'] . DIRECTORY_SEPARATOR);
+                if ($bl===false) {
+                    throw new AddonsException($dir->error);
+                }
 
                 $obj = get_addons_instance($_info['name']);
                 if (!empty($obj)) { // 调用插件安装
@@ -437,23 +447,25 @@ class Cloud
 
                 // 导入数据库
                 $this->importSql($_info['name']);
-
                 // 调用插件启用方法
                 $this->enable($_info['name']);
+
+                $demodataFile = $addonsPath . $_info['name'] . DIRECTORY_SEPARATOR;
             }
-            $zipFile->close();
-            @unlink($file);
+
+            // 导入演示数据
+            if ($demodata==1) {
+                $demodataFile = $demodataFile.'demodata.sql';
+                if (is_file($demodataFile)) {
+                    create_sql($demodataFile);
+                }
+            }
+            @unlink($path.$filename);
         } catch (AddonsException $e) {
-            $zipFile->close();
-            $this->clearInstallDir($installDirArr, [$file]);
             throw new AddonsException($e->getMessage());
         } catch (\PhpZip\Exception\ZipException $e) {
-            $zipFile->close();
-            $this->clearInstallDir($installDirArr, [$file]);
             throw new AddonsException($e->getMessage());
         } catch (Exception $e) {
-            $zipFile->close();
-            $this->clearInstallDir($installDirArr, [$file]);
             throw new AddonsException($e->getMessage());
         }
         return $_info;
@@ -520,7 +532,7 @@ class Cloud
                         $tmpFiles = [];
                         foreach ($listArr as $k=>$v) {
                             $newFile = str_replace($installPathDir, base_path(), $v);
-                            if (is_file($v) && file_exists($newFile)) {
+                            if (is_file($newFile)) {
                                 $tmpFiles[] = $newFile;
                             }
                         }
@@ -556,7 +568,7 @@ class Cloud
                             $tmpFiles = [];
                             foreach ($temp as $item) {
                                 $newFile = str_replace($temp_installPathDir, $themePath, $item);
-                                if (is_file($item) && file_exists($newFile)) {
+                                if (is_file($newFile)) {
                                     $tmpFiles[] = $newFile; // 记录已存在的文件
                                 }
                             }
@@ -577,16 +589,16 @@ class Cloud
                             continue;
                         }
                         $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
-                        if (is_dir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
-                            throw new AddonsException(lang('%s,existed', [$addonsStatic.DIRECTORY_SEPARATOR.$name]));
+                        if (is_dir($addonsStatic.$name.DIRECTORY_SEPARATOR)) {
+                            throw new AddonsException(lang('%s,existed', [$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
-                        if (!@mkdir($addonsStatic.DIRECTORY_SEPARATOR.$name)) {
-                            throw new AddonsException(lang('Failed to create "%s" folder',[$addonsStatic.DIRECTORY_SEPARATOR.$name]));
+                        if (!@mkdir($addonsStatic.$name.DIRECTORY_SEPARATOR)) {
+                            throw new AddonsException(lang('Failed to create "%s" folder',[$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
-                        $installDir[] = $addonsStatic.DIRECTORY_SEPARATOR.$name; // 记录安装的文件，出错回滚
-                        $bl = Dir::instance()->copyDir($installPathDir, $addonsStatic.DIRECTORY_SEPARATOR.$name);
+                        $installDir[] = $addonsStatic.$name.DIRECTORY_SEPARATOR; // 记录安装的文件，出错回滚
+                        $bl = Dir::instance()->copyDir($installPathDir, $addonsStatic.$name.DIRECTORY_SEPARATOR);
                         if ($bl===false) {
-                            throw new AddonsException(lang('%s copy to %s fails',[$installPathDir,$addonsStatic.DIRECTORY_SEPARATOR.$name]));
+                            throw new AddonsException(lang('%s copy to %s fails',[$installPathDir,$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
                     }
                 }
@@ -937,12 +949,176 @@ class Cloud
     }
 
     /**
+     * 安装/更新时的检测，用于提示用户
+     * @param array $info
+     * @param string $type
+     * @param string $module
+     * @param string $diypath
+     * @return array
+     */
+    public function checkInstall(array $info, $type='', $module = '', $diypath = '')
+    {
+        $type = $type ?: $info['type'];
+        $module = $module ?: ($info['module']??'');
+        $name = $info['name'];
+
+        // 依赖的插件检测
+        if (!empty($info['addon']) && is_array($info['addon'])) {
+            $addon = [];
+            foreach ($info['addon'] as $key=>&$v) {
+                if (\think\facade\Validate::is($key, '/^[a-zA-Z][a-zA-Z0-9_]*$/')) {
+                    $bl = \think\facade\Db::name('app')->where(['name'=>$key])->find();
+                    if (!$bl) {
+                        $addon[] = ['name'=>$key,'version'=>lang('Not installed'),'need_ver'=>$v,'status'=>0];
+                        continue;
+                    }
+                    $addon[] = ['name'=>$key,'version'=>$bl['version'],'need_ver'=>$v,'status'=>$bl['status']];
+                }
+            }
+            $info['addon'] = $addon;
+        }
+
+        // 检测数据库依赖
+        if (!empty($info['database']) && is_string($info['database'])) {
+            $info['database'] = explode(',', $info['database']);
+            $result = \think\facade\Db::query("SHOW TABLE STATUS");
+            $tables = [];
+            foreach ($result as $key=>$value) {
+                $tables[] = $value['Name'];
+            }
+            $temp = [];
+            $prefix = config('database.connections.mysql.prefix');
+            foreach ($info['database'] as $key=>$value) {
+                $temp[] = ['table'=>$prefix.$value,'status'=>in_array($prefix.$value, $tables)?-1:1];
+            }
+            $info['database'] = $temp;
+        }
+
+        // 检测目录权限
+        $info['dir'] = isset($info['dir']) && is_string($info['dir'])?explode(',', $info['dir']):[];
+        $newDir = [];
+        foreach ($info['dir'] as $vv) {
+            $path = str_replace('//','/',str_replace('\\','/', root_path().$vv));
+            if (!is_writable($path)) {
+                $newDir[] = ['path'=>$path,'status'=>0];
+            }
+        }
+        $info['dir'] = $newDir;
+
+        if ('template'==$type) {
+            list($templatePath, $staticPath) = Cloud::getInstance()->getTemplatePath($module);
+            // 模板目录与静态文件目录检测, 为空，为本地插件开发的情况
+            if (!empty($diypath) && is_dir($templatePath.$name.DIRECTORY_SEPARATOR)) {
+                $info['dir'][] = ['path'=>$templatePath.$name.DIRECTORY_SEPARATOR,'status'=>-1];
+            }
+            if (!is_writable($templatePath)) {
+                $info['dir'][] = ['path'=>$templatePath,'status'=>0];
+            }
+            $diypath = $diypath?:$templatePath.$name.DIRECTORY_SEPARATOR;
+            // 演示数据检测
+            if (is_file($diypath.'demodata.sql')) { // 演示数据检测
+                $info['demodata'] = 1;
+            }
+            // 有静态文件，安装时移动到public目录下，检测是否已存在，是否有写入权限
+            if (is_dir($diypath.'static'.DIRECTORY_SEPARATOR)) {
+                if (is_dir($staticPath.$name)) {
+                    // 重复
+                    $info['dir'][] = ['path'=>$staticPath.$name,'status'=>-1];
+                } else if (!is_writable($staticPath)) {
+                    $info['dir'][] = ['path'=>$staticPath,'status'=>0];
+                }
+            }
+        } else {
+            $addonPath = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR;
+            // 插件目录是否存在, 为空，为本地插件开发的情况
+            if (!empty($diypath) && is_dir($addonPath)) {
+                $info['dir'][] = ['path'=>$addonPath,'status'=>-1];
+            }
+            $diypath = $diypath?:$addonPath;
+            // 演示数据检测
+            if (is_file($diypath.'demodata.sql')) {
+                $info['demodata'] = 1;
+            }
+            // 插件目录是否可写
+            if (!is_writable(app()->addons->getAddonsPath())) {
+                $info['dir'][] = ['path'=>app()->addons->getAddonsPath(),'status'=>0];
+            }
+            $installPath = $diypath.'install'.DIRECTORY_SEPARATOR;
+            if (is_dir($installPath)) {
+                $list = ['app','public','template','static'];
+                foreach ($list as $key=>$value) {
+                    $installPathDir = $installPath. $value . DIRECTORY_SEPARATOR;
+                    if (!is_dir($installPathDir)) {
+                        continue;
+                    }
+                    if ('app'==$value || 'public'==$value) {
+                        // 获取安装的目录文件是否存在
+                        $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
+                        if (empty($listArr)) {
+                            continue;
+                        }
+                        foreach ($listArr as $k=>$v) {
+                            $newFile = str_replace($installPathDir, base_path(), $v);
+                            if (is_dir($newFile) && !is_writable($newFile)) {
+                                $info['dir'][] = ['path'=>$newFile,'status'=>0];
+                            }
+                            if (is_file($newFile)) {
+                                $info['dir'][] = ['path'=>$newFile,'status'=>-1];
+                            }
+                        }
+                    } else if ('template'==$value) { // 复制到模板
+                        $listArr = Dir::instance()->getList($installPathDir);
+                        $site = site();
+                        foreach ($listArr as $k=>$v) {
+                            if (in_array($v, ['.', '..']) || !isset($site[$v . '_theme'])) { // 必须是模块文件夹
+                                continue;
+                            }
+                            $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+                            // 获取插件安装文件模块目录下的所有文件
+                            $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
+
+                            // 判断是否已经存在该文件
+                            $temp =  Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
+                            if (empty($temp)) {
+                                continue;
+                            }
+                            foreach ($temp as $item) {
+                                $newFile = str_replace($temp_installPathDir, $themePath, $item);
+                                if (is_dir($newFile) && !is_writable($newFile)) {
+                                    $info['dir'][] = ['path'=>$newFile,'status'=>0];
+                                }
+                                if (is_file($newFile)) {
+                                    $info['dir'][] = ['path'=>$newFile,'status'=>-1];
+                                }
+                            }
+                        }
+                    } else if ('static'==$value) { // 静态文件
+                        $listArr = Dir::instance()->rglob($installPathDir . '*', GLOB_BRACE);
+                        if (empty($listArr)) {
+                            continue;
+                        }
+                        $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
+                        if (is_dir($addonsStatic.$name)) {
+                            $info['dir'][] = ['path'=>$addonsStatic.$name,'status'=>-1];
+                        }
+                        if (!is_writable($addonsStatic)) {
+                            $info['dir'][] = ['path'=>$addonsStatic,'status'=>0];
+                        }
+                    }
+                }
+            }
+        }
+        return $info;
+    }
+
+    /**
      * 导入数据库
      * @param string $name 应用标识
+     * @param string $upgrade true-使用upgrade.sql,false-使用install.sql
      */
-    public function importSql($name)
+    public function importSql($name, $upgrade=false)
     {
-        $sql = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install.sql';
+        $sql = $upgrade?app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'upgrade.sql':app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install.sql';
         if (!file_exists($sql)) {
             return false;
         }
@@ -976,10 +1152,15 @@ class Cloud
 
                 foreach($row as &$v){
                     //将数据中的单引号转义，否则还原时会出错
-                    $v = addslashes($v);
+                    if (is_null($v)) {
+                        $v = '--null--';
+                    } else if(is_string($v)) {
+                        $v = addslashes($v);
+                    }
                 }
 
                 $sql = "INSERT INTO `{$value['Name']}` VALUES ('" . implode("', '", $row) . "');\n";
+                $sql = str_replace("'--null--'",'null', $sql);
                 if (false === @fwrite($fp, $sql)) {
                     return false;
                 }
