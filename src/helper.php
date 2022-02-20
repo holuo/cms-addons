@@ -168,7 +168,7 @@ if (!function_exists('get_addons_info')) {
         if ($type=='template') {
             $addon_info = "addon_{$name}_info";
             $info = app()->cache->get($addon_info);
-            if (!empty($info)) {
+            if (!app()->isDebug() && !empty($info)) {
                 return $info;
             }
 
@@ -183,16 +183,17 @@ if (!function_exists('get_addons_info')) {
             if (!empty($one)) {
                 $info = $one + $info;
             }
-            app()->cache->tag('addons')->set($addon_info, $info);
-            return $info;
         } else {
             $addon = get_addons_instance($name);
             if (!$addon) {
                 return [];
             }
-
-            return $addon->getInfo();
+            $info = $addon->getInfo();
         }
+        if (!app()->isDebug() && $type=='template') {
+            app()->cache->tag('addons')->set($addon_info, $info);
+        }
+        return $info;
     }
 }
 
@@ -206,7 +207,7 @@ if (!function_exists('get_addons_info_all')) {
     function get_addons_info_all($type)
     {
         $all = app()->cache->get('get_addons_info_all_'.$type);
-        if (!empty($all)) {
+        if (!app()->isDebug() && !empty($all)) {
             return $all;
         }
         if ($type=='template') {
@@ -259,7 +260,9 @@ if (!function_exists('get_addons_info_all')) {
                 }
             }
         }
-        app()->cache->tag('addons')->set('get_addons_info_all_'.$type, $data);
+        if (!app()->isDebug()) {
+            app()->cache->tag('addons')->set('get_addons_info_all_'.$type, $data);
+        }
         return $data;
     }
 }

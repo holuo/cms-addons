@@ -145,7 +145,7 @@ abstract class Addons
     final public function getInfo()
     {
         $info = app()->cache->get($this->addon_info);
-        if ($info) {
+        if (!app()->isDebug() && $info) {
             return $info;
         }
 
@@ -164,7 +164,10 @@ abstract class Addons
             $info = $one + $info;
         }
 
-        app()->cache->tag('addons')->set($this->addon_info, $info);
+        if (!app()->isDebug()) {
+            app()->cache->tag('addons')->set($this->addon_info, $info);
+        }
+
         return isset($info) ? $info : [];
     }
 
