@@ -1159,7 +1159,7 @@ class Cloud
                     }
                 }
 
-                $sql = "INSERT INTO `{$value['Name']}` VALUES ('" . implode("', '", $row) . "');\n";
+                $sql = "INSERT INTO `{$value['Name']}` VALUES ('" . str_replace(array("\r","\n"),array('\r','\n'),implode("', '", $row)) . "');\n";
                 $sql = str_replace("'--null--'",'null', $sql);
                 if (false === @fwrite($fp, $sql)) {
                     return false;
