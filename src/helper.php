@@ -267,26 +267,21 @@ if (!function_exists('get_addons_info_all')) {
     }
 }
 
-if (!function_exists('set_addons_info')) {
+if (!function_exists('write_addons_info')) {
     /**
-     * 修改插件配置信息
-     * @param $name string 插件标识
+     * 写入插件ini文件信息
+     * @param $filename string 应用跟路径
      * @param $array array 配置字段数组
      * @return bool|string
      */
-    function set_addons_info($name, $array)
+    function write_addons_info($filename, $array)
     {
-        $info_file = app()->getRootPath() . 'addons' . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'info.ini';
-        if (!is_file($info_file)) {
-            return lang('Plug-ini configuration file does not exist');
-        }
-
-        // 读取配置
-        $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
-        $array = array_merge($_info, $array);
         $tempArr = [];
         foreach ($array as $key=>$value) {
             if (is_array($value)) {
+                if (empty($value)) {
+                    continue;
+                }
                 $tempArr[] = "[{$key}]";
                 foreach ($value as $k=>$v) {
                     $tempArr[] = is_numeric($value) ? "$k = $v" : "$k = \"$v\"";
@@ -297,12 +292,11 @@ if (!function_exists('set_addons_info')) {
         }
 
         // 写入配置
-        if ($handle = fopen($info_file, 'w')) {
+        if ($handle = fopen($filename, 'w')) {
             fwrite($handle, implode("\n", $tempArr)."\n");
             fclose($handle);
-            \think\facade\Config::set($tempArr, "addon_{$name}_info");
         } else {
-            return lang('%s,File write failed', ["[$info_file]"]);
+            return lang('%s,File write failed', ["[$filename]"]);
         }
         return true;
     }

@@ -14,6 +14,13 @@ abstract class Controller
     // success、error、result
     use \app\common\library\Jump;
 
+    /**
+     * 错误模板，主题文件夹下
+     * @var string
+     */
+    protected $error_tmpl = '/error';
+    protected $success_tmpl = '/success';
+
     // app 容器
     protected $app;
     // 请求对象
@@ -57,7 +64,7 @@ abstract class Controller
 
         // 初始化站点配置信息
         $site = \app\admin\model\routine\Config::initConfig();
-        $site['root_domain'] = $this->request->baseFile(true); // 带域名
+        $site['root_domain'] = $this->request->domain(true); // 带域名
         $site['root_file'] = trim($this->request->baseFile(), '/');
 
         // 模板
@@ -171,6 +178,8 @@ abstract class Controller
         $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$this->name])->find();
         if (!empty($one)) {
             $info = $one + $info;
+        } else {
+            $info['status'] = 0;
         }
 
         Config::set($info, $this->addon_info);

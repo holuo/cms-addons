@@ -162,6 +162,8 @@ abstract class Addons
         $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$this->name])->find();
         if (!empty($one)) {
             $info = $one + $info;
+        } else {
+            $info['status'] = 0;
         }
 
         if (!app()->isDebug()) {

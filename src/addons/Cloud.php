@@ -279,6 +279,10 @@ class Cloud
 
                 $obj = get_addons_instance($info['name']);
                 if (!empty($obj)) { // 调用插件安装
+                    if (isset($obj->menu)) {
+                        // 自动导入菜单
+                        create_menu($obj->menu);
+                    }
                     $obj->install();
                 }
 
@@ -354,6 +358,10 @@ class Cloud
 
                 $obj = get_addons_instance($info['name']);
                 if (!empty($obj) && method_exists($obj,'upgrade')) { // 调用插件更新
+                    if (isset($obj->menu)) {
+                        // 自动导入菜单，自动判断是否升级
+                        create_menu($obj->menu);
+                    }
                     $obj->upgrade();
                 }
 
@@ -442,6 +450,10 @@ class Cloud
 
                 $obj = get_addons_instance($_info['name']);
                 if (!empty($obj)) { // 调用插件安装
+                    if (isset($obj->menu)) {
+                        // 自动导入菜单
+                        create_menu($obj->menu);
+                    }
                     $obj->install();
                 }
 
@@ -555,7 +567,7 @@ class Cloud
                                 continue;
                             }
 
-                            $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+                            $themePath = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
 
                             // 获取插件安装文件模块目录下的所有文件
                             $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
@@ -672,7 +684,7 @@ class Cloud
                         }
 
                         // 模板主题路径
-                        $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+                        $themePath = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
 
                         // 获取插件安装文件模块目录下的所有文件
                         $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
@@ -1073,7 +1085,7 @@ class Cloud
                             if (in_array($v, ['.', '..']) || !isset($site[$v . '_theme'])) { // 必须是模块文件夹
                                 continue;
                             }
-                            $themePath = root_path('template') . $v . DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+                            $themePath = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
                             // 获取插件安装文件模块目录下的所有文件
                             $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
 

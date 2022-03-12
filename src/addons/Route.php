@@ -43,6 +43,9 @@ class Route
 
         Event::trigger('addons_begin', $request);
 
+        // 默认控制器Index，默认操作方法index
+        $controller = empty($controller) ? 'Index' : $controller;
+        $action = empty($action) ? 'index' : $action;
         if (empty($addon) || empty($controller) || empty($action)) {
             throw new HttpException(500, lang('Addon can not be empty'));
         }
@@ -56,8 +59,10 @@ class Route
         if (!$info) {
             throw new HttpException(404, lang('Addon %s not found', [$addon]));
         }
-        if (!$info['status']) {
+        if ($info['status']==-1) {
             throw new HttpException(500, lang('Addon %s is disabled', [$addon]));
+        } else if ($info['status']==0) {
+            throw new HttpException(404, lang('Addon %s not found', [$addon]));
         }
 
         // 监听addon_module_init
@@ -86,6 +91,7 @@ class Route
             // 操作不存在
             throw new HttpException(404, lang('Addon action %s not found', [get_class($instance).'->'.$action.'()']));
         }
+
         Event::trigger('addons_action_begin', $call);
 
         return call_user_func_array($call, $vars);
