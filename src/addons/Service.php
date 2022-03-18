@@ -36,7 +36,10 @@ class Service extends \think\Service
         // 绑定插件容器
         $this->app->bind('addons', Service::class);
         // 插件初始化
-        Event::trigger('addons_init');
+        try {
+            Event::trigger('addons_init');
+        } catch (\Exception $exception) {
+        }
     }
 
     public function boot()
@@ -221,6 +224,11 @@ class Service extends \think\Service
                         $config['hooks'][$hook][] = $name;
                     }
                 }
+            }
+
+            // 注册路由
+            if ($info['basename']=='route.php' && !in_array($name,$appArr)) {
+                $config['route'] = include $addons_file;
             }
         }
         Config::set($config, 'addons');

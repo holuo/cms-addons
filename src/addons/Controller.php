@@ -77,6 +77,7 @@ abstract class Controller
                 '__libs__'=>$site['cdn'].'/static/libs'
             ]
         ]);
+        $this->site = $site;
         $this->assign('site', $site);
 
         // 控制器初始化
@@ -88,6 +89,22 @@ abstract class Controller
     {
         // 加载当前插件语言包
         $this->app->lang->load($this->addon_path.'lang'.DIRECTORY_SEPARATOR.$this->app->lang->getLangset().'.php');
+        // 加载当前控制器语言包
+        $name = $this->request->controller();
+        if (strpos($name, '.')) {
+            $arr = explode('.', $name);
+            if (count($arr) == 2) {
+                $path = strtolower($arr[0].DIRECTORY_SEPARATOR.$arr[1]);
+            } else {
+                $path = strtolower($name);
+            }
+        } else {
+            $path = strtolower($name);
+        }
+        $path = $this->addon_path.'lang'.DIRECTORY_SEPARATOR.$this->app->lang->getLangset().DIRECTORY_SEPARATOR.$path.'.php';
+        if (is_file($path)) {
+            $this->app->lang->load($path);
+        }
     }
 
     /**
@@ -105,9 +122,9 @@ abstract class Controller
 
     /**
      * 加载模板输出
-     * @param string $template
-     * @param array $vars           模板文件名
-     * @return false|mixed|string   模板输出变量
+     * @param string $template 模板文件名
+     * @param array $vars      模板输出变量
+     * @return false|mixed|string
      * @throws \think\Exception
      */
     protected function fetch($template = '', $vars = [])

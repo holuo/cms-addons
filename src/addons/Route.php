@@ -26,6 +26,7 @@ use think\helper\Str;
 use think\facade\Event;
 use think\facade\Config;
 use think\exception\HttpException;
+use ReflectionClass;
 
 class Route
 {
@@ -79,6 +80,9 @@ class Route
 
         // 生成控制器对象
         $instance = new $class($app);
+        // 注册控制器中间件
+        // self::registerControllerMiddleware($instance, $action);
+
         $vars = [];
         if (is_callable([$instance, $action])) {
             // 执行操作方法
@@ -95,5 +99,58 @@ class Route
         Event::trigger('addons_action_begin', $call);
 
         return call_user_func_array($call, $vars);
+    }
+
+    /**
+     * 使用反射机制注册控制器中间件
+     * @access public
+     * @param object $controller 控制器实例
+     * @return void
+     */
+    protected static function registerControllerMiddleware($controller,$action): void
+    {
+        $class = new ReflectionClass($controller);
+
+        if ($class->hasProperty('middleware')) {
+            $reflectionProperty = $class->getProperty('middleware');
+            $reflectionProperty->setAccessible(true);
+
+            $middlewares = $reflectionProperty->getValue($controller);
+
+            foreach ($middlewares as $key => $val) {
+                if (!is_int($key)) {
+                    $middleware = $key;
+                    $options    = $val;
+                } elseif (isset($val['middleware'])) {
+                    $middleware = $val['middleware'];
+                    $options    = $val['options'] ?? [];
+                } else {
+                    $middleware = $val;
+                    $options    = [];
+                }
+
+                if (isset($options['only']) && !in_array($action, self::parseActions($options['only']))) {
+                    continue;
+                } elseif (isset($options['except']) && in_array($action, self::parseActions($options['except']))) {
+                    continue;
+                }
+
+                if (is_string($middleware) && strpos($middleware, ':')) {
+                    $middleware = explode(':', $middleware);
+                    if (count($middleware) > 1) {
+                        $middleware = [$middleware[0], array_slice($middleware, 1)];
+                    }
+                }
+
+                app()->middleware->controller($middleware);
+            }
+        }
+    }
+
+    protected static function parseActions($actions)
+    {
+        return array_map(function ($item) {
+            return strtolower($item);
+        }, is_string($actions) ? explode(",", $actions) : $actions);
     }
 }
