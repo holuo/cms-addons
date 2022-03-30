@@ -281,7 +281,7 @@ class Cloud
                 if (!empty($obj)) { // 调用插件安装
                     if (isset($obj->menu)) {
                         // 自动导入菜单
-                        create_menu($obj->menu);
+                        create_menu($obj->menu,$info['name']);
                     }
                     $obj->install();
                 }
@@ -360,7 +360,7 @@ class Cloud
                 if (!empty($obj) && method_exists($obj,'upgrade')) { // 调用插件更新
                     if (isset($obj->menu)) {
                         // 自动导入菜单，自动判断是否升级
-                        create_menu($obj->menu);
+                        create_menu($obj->menu,$info['name']);
                     }
                     $obj->upgrade();
                 }
@@ -452,7 +452,7 @@ class Cloud
                 if (!empty($obj)) { // 调用插件安装
                     if (isset($obj->menu)) {
                         // 自动导入菜单
-                        create_menu($obj->menu);
+                        create_menu($obj->menu,$_info['name']);
                     }
                     $obj->install();
                 }
