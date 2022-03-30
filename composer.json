@@ -2,6 +2,7 @@
     "name": "hkcms/cms-addons",
     "description": "test version",
     "license": "Apache-2.0",
+    "version": "1.0.0",
     "authors": [
         {
             "name": "luo",
@@ -12,7 +13,6 @@
             "email": "xiaobo.sun@qq.com"
         }
     ],
-    "minimum-stability": "dev",
     "require": {
         "php": ">=7.1.0",
         "topthink/framework": "^6.0",
