@@ -41,7 +41,7 @@ class Addons
      */
     public function handle($request, \Closure $next)
     {
-        hook('addon_middleware', $request);
+        hook('addonMiddleware', $request);
 
         return $next($request);
     }

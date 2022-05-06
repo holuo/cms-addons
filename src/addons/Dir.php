@@ -422,7 +422,7 @@ class Dir
             return false;
         }
         if (is_dir($destination) == false) {
-            mkdir($destination, 0700);
+            mkdir($destination, 0700, true);
         }
         $handle = opendir($source);
         while (false !== ($file = readdir($handle))) {

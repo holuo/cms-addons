@@ -227,13 +227,14 @@ class Cloud
      * @param array $info 安装的插件信息
      * @param string $unzipPath 解压的目录
      * @param string $demodata 1=安装演示数据
+     * @param bool $force true-覆盖安装
      * @return bool
      * @throws AddonsException
      */
-    public function install($info, $unzipPath = '', $demodata = '')
+    public function install($info, $unzipPath = '', $demodata = '', bool $force=false)
     {
         // 目录权限检测
-        $this->competence($info['type'], $info['name'], $info['module']??'');
+        $this->competence($info['type'], $info['name'], $info['module']??'',false,$force);
 
         // 需要删除目录
         $installDirArr = [];
@@ -289,7 +290,7 @@ class Cloud
                 // 导入数据库
                 $this->importSql($info['name']);
                 // 调用插件启用方法
-                $this->enable($info['name']);
+                $this->enable($info['name'], $force);
 
                 $demodataFile = $addonsPath . $info['name'] . DIRECTORY_SEPARATOR;
             }
@@ -393,10 +394,11 @@ class Cloud
      * @param string $type 应用类型
      * @param string $file zip压缩位置
      * @param string $file 是否导入演示数据
+     * @param bool $force true-强制覆盖
      * @return array|false
      * @throws AddonsException
      */
-    public function installLocal($type, $file, $demodata = '')
+    public function installLocal($type, $file, $demodata = '', bool $force=false)
     {
         $path = dirname($file).DIRECTORY_SEPARATOR;
         $filename = basename($file).'.zip';
@@ -412,7 +414,8 @@ class Cloud
             if (isset($all[$_info['name']])) {
                 throw new AddonsException(lang('Plug in %s already exists.', [$_info['name']]));
             }
-            $this->competence($type,$_info['name'],$_info['module']??'');
+
+            $this->competence($type,$_info['name'],$_info['module']??'',false, $force);
 
             // 模板情况下的处理
             if ('template'==$type) {
@@ -460,7 +463,7 @@ class Cloud
                 // 导入数据库
                 $this->importSql($_info['name']);
                 // 调用插件启用方法
-                $this->enable($_info['name']);
+                $this->enable($_info['name'], $force);
 
                 $demodataFile = $addonsPath . $_info['name'] . DIRECTORY_SEPARATOR;
             }
@@ -511,10 +514,11 @@ class Cloud
     /**
      * 插件启用
      * @param $name string 插件标识
+     * @param $force bool true-强制覆盖
      * @return bool
      * @throws AddonsException
      */
-    public function enable($name)
+    public function enable($name, bool $force=false)
     {
         // 插件install文件夹路径
         $installPath = app()->addons->getAddonsPath().$name.DIRECTORY_SEPARATOR.'install'.DIRECTORY_SEPARATOR;
@@ -541,16 +545,18 @@ class Cloud
                         }
 
                         // 判断是否已经存在该文件了，存在就报错
-                        $tmpFiles = [];
-                        foreach ($listArr as $k=>$v) {
-                            $newFile = str_replace($installPathDir, base_path(), $v);
-                            if (is_file($newFile)) {
-                                $tmpFiles[] = $newFile;
+                        if ($force===false) {
+                            $tmpFiles = [];
+                            foreach ($listArr as $k=>$v) {
+                                $newFile = str_replace($installPathDir, base_path(), $v);
+                                if (is_file($newFile)) {
+                                    $tmpFiles[] = $newFile;
+                                }
                             }
-                        }
-                        if (!empty($tmpFiles)) {
-                            $tmpFiles = implode(',', $tmpFiles);
-                            throw new AddonsException(lang('%s,existed',[$tmpFiles]));
+                            if (!empty($tmpFiles)) {
+                                $tmpFiles = implode(',', $tmpFiles);
+                                throw new AddonsException(lang('%s,existed',[$tmpFiles]));
+                            }
                         }
 
                         // 复制目录
@@ -563,30 +569,47 @@ class Cloud
                         $site = site();
 
                         foreach ($listArr as $k=>$v) {
-                            if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
+                            if (in_array($v,['.','..'])) {
                                 continue;
                             }
+                            if (!isset($site[$v.'_theme']) && $v==$name) { // 检测是否是插件主题化
+                                $tempArr = Dir::instance()->getList($installPathDir.$v.DIRECTORY_SEPARATOR);
+                                foreach ($tempArr as $item) {
+                                    if (in_array($v,['.','..'])) {
+                                        continue;
+                                    }
+                                    if (file_exists($installPathDir.$v.DIRECTORY_SEPARATOR.$item.DIRECTORY_SEPARATOR.'info.ini')) {
+                                        $themeName = $item;
+                                        break;
+                                    }
+                                }
+                            }
 
-                            $themePath = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR . $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+                            // 获取当前主题
+                            $curTheme = isset($themeName) ? '' : $site[$v.'_theme'] . DIRECTORY_SEPARATOR;
+
+                            $themePath = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR . $curTheme;
 
                             // 获取插件安装文件模块目录下的所有文件
                             $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
-
-                            // 判断是否已经存在该文件
                             $temp = Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
                             if (empty($temp)) {
                                 continue;
                             }
-                            $tmpFiles = [];
-                            foreach ($temp as $item) {
-                                $newFile = str_replace($temp_installPathDir, $themePath, $item);
-                                if (is_file($newFile)) {
-                                    $tmpFiles[] = $newFile; // 记录已存在的文件
+
+                            // 判断是否已经存在该文件了，存在就报错
+                            if ($force===false) {
+                                $tmpFiles = [];
+                                foreach ($temp as $item) {
+                                    $newFile = str_replace($temp_installPathDir, $themePath, $item);
+                                    if (is_file($newFile)) {
+                                        $tmpFiles[] = $newFile; // 记录已存在的文件
+                                    }
                                 }
-                            }
-                            if (!empty($tmpFiles)) {
-                                $tmpFiles = implode(',', $tmpFiles);// 报错已存在的文件
-                                throw new AddonsException(lang('%s,existed',[$tmpFiles]));
+                                if (!empty($tmpFiles)) {
+                                    $tmpFiles = implode(',', $tmpFiles);// 报错已存在的文件
+                                    throw new AddonsException(lang('%s,existed',[$tmpFiles]));
+                                }
                             }
 
                             // 复制目录
@@ -601,7 +624,7 @@ class Cloud
                             continue;
                         }
                         $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
-                        if (is_dir($addonsStatic.$name.DIRECTORY_SEPARATOR)) {
+                        if (is_dir($addonsStatic.$name.DIRECTORY_SEPARATOR) && $force===false) {
                             throw new AddonsException(lang('%s,existed', [$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
                         if (!@mkdir($addonsStatic.$name.DIRECTORY_SEPARATOR)) {
@@ -628,6 +651,38 @@ class Cloud
         if (!empty($obj) && method_exists($obj,'enable')) {
             $obj->enable();
         }
+        // 插件主题化，将插件默认主题写入数据库
+        if (isset($themeName)) {
+            $info = get_addons_info($themeName,'template',$name);
+            \think\facade\Db::name('app')->insert([
+                'name'=>$info['name'],
+                'title'=>$info['title']??'',
+                'image'=>$info['image']??'',
+                'price'=>$info['price']??0,
+                'module'=>$info['module'],
+                'type'=>'template',
+                'description'=>$info['description']??'',
+                'author'=>$info['author']??'',
+                'version'=>$info['version']['version']??$info['version'],
+                'status'=>1,
+                'createtime'=>time(),
+            ]);
+            if (!\think\facade\Db::name('config')->where(['name'=>$name.'_theme'])->find()) {
+                $ini = get_addons_info($name,'addon');
+                \think\facade\Db::name('config')->insert([
+                    'group'=>'more',
+                    'name'=>$name.'_theme',
+                    'title'=>($ini['title']??$name).'主题',
+                    'value'=>$themeName,
+                    'type'=>'text',
+                    'max_number'=>'0',
+                    'is_default'=>'0',
+                    'lang'=>'-1',
+                    'weigh'=>'1',
+                ]);
+            }
+        }
+
         return true;
     }
 
@@ -679,7 +734,24 @@ class Cloud
                     $site = site();
 
                     foreach ($listArr as $k=>$v) {
-                        if (in_array($v,['.','..']) || !isset($site[$v.'_theme'])) { // 必须是模块文件夹
+                        if (in_array($v,['.','..'])) {
+                            continue;
+                        }
+
+                        if (isset($site[$v.'_theme']) && $v==$name) { // 检测是否是插件主题化
+                            $tempArr = Dir::instance()->getList($installPathDir.$v.DIRECTORY_SEPARATOR);
+                            foreach ($tempArr as $item) {
+                                if (in_array($v,['.','..'])) {
+                                    continue;
+                                }
+                                if (file_exists($installPathDir.$v.DIRECTORY_SEPARATOR.$item.DIRECTORY_SEPARATOR.'info.ini')) {
+                                    $themeName = config('cms.tpl_path').$v.DIRECTORY_SEPARATOR;
+                                    break 2;
+                                }
+                            }
+                        }
+
+                        if (!isset($site[$v.'_theme'])) {
                             continue;
                         }
 
@@ -688,7 +760,6 @@ class Cloud
 
                         // 获取插件安装文件模块目录下的所有文件
                         $temp_installPathDir = $installPathDir . $v . DIRECTORY_SEPARATOR;
-                        // 判断是否已经存在该文件
                         $temp = Dir::instance()->rglob( $temp_installPathDir . '*', GLOB_BRACE);
                         if (empty($temp)) {
                             continue;
@@ -715,8 +786,6 @@ class Cloud
                                 $dirArr[] = $newFile;
                             }
                         }
-
-                        // end 判断是否已经存在该文件 结束
                     }
                 } else if ('static'==$value) { // 静态文件 代码复制
                     $addonsStatic = public_path('static'.DIRECTORY_SEPARATOR.'addons');
@@ -753,6 +822,18 @@ class Cloud
         if (!empty($obj) && method_exists($obj,'disable')) {
             $obj->disable();
         }
+
+        // 清除插件主题文件
+        if (isset($themeName)) {
+            \think\facade\Db::name('app')->where(['module'=>$name])->delete();
+            \think\facade\Db::name('config')->where(['name'=>$name.'_theme'])->delete();
+            $this->clearInstallDir([$themeName],[]);
+
+            $staticPath = config('cms.tpl_static').$name.DIRECTORY_SEPARATOR;
+            if (is_dir($staticPath)) {
+                $this->clearInstallDir([$staticPath],[]);
+            }
+        }
     }
 
 
@@ -762,9 +843,10 @@ class Cloud
      * @param string $name 应用标识
      * @param string $module 应用模块
      * @param bool $update 场景：更新、安装
+     * @param bool $force true-覆盖安装
      * @throws AddonsException
      */
-    public function competence($type, $name, $module, $update=false)
+    public function competence($type, $name, $module, $update=false, bool $force=false)
     {
         if ('template'==$type) {
             // 模板的情况
@@ -776,10 +858,10 @@ class Cloud
             if (!is_dir($staticPath)) { // 静态资源安装目录不存在
                 throw new AddonsException(lang('The static resource directory "%s" does not exist!',[$staticPath]));
             }
-            if (is_dir($templatePath.$name)  && $update===false) { // 不是更新的时候，已经有对应目录抛出异常
+            if (is_dir($templatePath.$name)  && $update===false && $force===false) { // 不是更新的时候，已经有对应目录抛出异常
                 throw new AddonsException(lang('The template installation directory "%s" already exists!',[$templatePath.$name]));
             }
-            if (is_dir($staticPath.$name) && $update===false) {
+            if (is_dir($staticPath.$name) && $update===false && $force===false) {
                 throw new AddonsException(lang('The static file installation directory "%s" already exists!',[$staticPath.$name]));
             }
         } else {

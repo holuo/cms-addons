@@ -37,7 +37,7 @@ class Service extends \think\Service
         $this->app->bind('addons', Service::class);
         // 插件初始化
         try {
-            Event::trigger('addons_init');
+            Event::trigger('addonsInit');
         } catch (\Exception $exception) {
         }
     }
@@ -114,11 +114,11 @@ class Service extends \think\Service
                     $values = (array) $values;
                 }
 
-//                $key = rtrim($key, 'Hook'); // 默认不带Hook
+                //  $key = rtrim($key, 'Hook'); // 默认不带Hook
                 $key = substr($key,0,strlen($key)-4); // 默认不带Hook
-                $key_r = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $key), "_"));
+                //  $key_r = strtolower(trim(preg_replace("/[A-Z]/", "_\\0", $key), "_")); // 废弃
 
-                $new_hooks[$key_r] = array_filter(array_map(function ($v) use ($key) {
+                $new_hooks[$key] = array_filter(array_map(function ($v) use ($key) {
                     return [get_addons_class($v), $key.'Hook']; // 默认不带Hook
                 }, $values));
             }
@@ -126,12 +126,6 @@ class Service extends \think\Service
             Cache::tag('addons')->set('hooks', $hooks);
         }
 
-        //如果在插件中有定义 AddonsInit，则直接执行
-//        if (isset($hooks['addons_init'])) {
-//            foreach ($hooks['addons_init'] as $k => $v) {
-//                Event::listen('addons_init', $v);
-//            }
-//        }
         Event::listenEvents($hooks);
     }
 

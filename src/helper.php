@@ -47,6 +47,16 @@ if (!function_exists('hook')) {
      */
     function hook($event, $params = null, bool $once = false, bool $original = false)
     {
+        // 兼容旧版
+        if (strpos($event,'_')!==false) {
+            $tmpArr = explode('_', $event);
+            foreach ($tmpArr as $key=>$value) {
+                if ($key==0) continue;
+                $tmpArr[$key] = ucfirst($value);
+            }
+            $event = implode('',$tmpArr);
+        }
+
         $result = Event::trigger($event, $params, $once);
 
         if ($original) {
@@ -166,7 +176,7 @@ if (!function_exists('get_addons_info')) {
     function get_addons_info($name, $type='addon', $module='index')
     {
         if ($type=='template') {
-            $addon_info = "addon_{$name}_info";
+            $addon_info = "addon_{$name}_info_".$module;
             $info = app()->cache->get($addon_info);
             if (!app()->isDebug() && !empty($info)) {
                 return $info;
@@ -179,7 +189,7 @@ if (!function_exists('get_addons_info')) {
             }
             $info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
 
-            $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$name])->find();
+            $one = \think\facade\Db::name('app')->field('name,type,title,description,author,version,status')->where(['name'=>$name,'module'=>$module])->find();
             if (!empty($one)) {
                 $info = $one + $info;
             }
@@ -314,7 +324,7 @@ if (!function_exists('get_addons_config')) {
     function get_addons_config($type, $name, $module='', $complete=false)
     {
         if ($type=='template') {
-            $k = "template_{$name}_config";
+            $k = "template_{$name}_config".$module;
             $config_file = config('cms.tpl_path'). $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.json';
         } else {
             $k = "addon_{$name}_config";
@@ -352,7 +362,7 @@ if (!function_exists('get_addons_config')) {
                         }
                     }
                 } else {
-                    if (in_array($value['type'], ['checkbox','selects'])) {
+                    if (in_array($value['type'], ['checkbox','selects']) || ($value['type']=='selectpage' && !empty($value['data_list']['multiple']))) {
                         $config[$key] = explode(',', $value['value']);
                     } else {
                         $config[$key] = $value['value'];
@@ -373,7 +383,7 @@ if (!function_exists('write_addons_config')) {
      * @param $module
      * @param $data
      */
-    function write_addons_config($type, $name, $module='', $data)
+    function write_addons_config($type, $name, $module, $data)
     {
         if ($type=='template') {
             $config_file = config('cms.tpl_path') . $module . DIRECTORY_SEPARATOR . $name . DIRECTORY_SEPARATOR . 'config.php';

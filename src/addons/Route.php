@@ -22,11 +22,15 @@ declare(strict_types=1);
 
 namespace think\addons;
 
+use Psr\Http\Message\ResponseInterface;
+use ReflectionException;
 use think\helper\Str;
 use think\facade\Event;
 use think\facade\Config;
 use think\exception\HttpException;
 use ReflectionClass;
+use think\Response;
+use ReflectionMethod;
 
 class Route
 {
@@ -41,8 +45,9 @@ class Route
     {
         $app = app();
         $request = $app->request;
+        self::loadFile(empty($addon)?'':$addon);
 
-        Event::trigger('addons_begin', $request);
+        Event::trigger('addonsBegin', $request);
 
         // 默认控制器Index，默认操作方法index
         $controller = empty($controller) ? 'Index' : $controller;
@@ -67,7 +72,7 @@ class Route
         }
 
         // 监听addon_module_init
-        Event::trigger('addon_module_init', $request);
+        Event::trigger('addonModuleInit', $request);
         $class = get_addons_class($addon, 'controller', $controller);
         if (!$class) {
             throw new HttpException(404, lang('Addon controller %s not found', [Str::studly($controller)]));
@@ -81,7 +86,33 @@ class Route
         // 生成控制器对象
         $instance = new $class($app);
         // 注册控制器中间件
-        // self::registerControllerMiddleware($instance, $action);
+        self::registerControllerMiddleware($instance, $action);
+
+        return app('middleware')->pipeline('controller')->send($request)->then(function () use ($instance, $action) {
+            $app = app();
+            if (is_callable([$instance, $action])) {
+                $vars = $app->request->param();
+                try {
+                    $reflect = new ReflectionMethod($instance, $action);
+                    // 严格获取当前操作方法名
+                    $actionName = $reflect->getName();
+
+                    $app->request->setAction($actionName);
+                } catch (ReflectionException $e) {
+                    $reflect = new ReflectionMethod($instance, '__call');
+                    $vars    = [$action, $vars];
+                    $app->request->setAction($action);
+                }
+                Event::trigger('addonsActionBegin', [$instance, $action]);
+            } else {
+                // 操作不存在
+                throw new HttpException(404, lang('Addon action %s not found', [get_class($instance).'->'.$action.'()']));
+            }
+
+            $data = $app->invokeReflectMethod($instance, $reflect, $vars);
+
+            return self::autoResponse($data);
+        });
 
         $vars = [];
         if (is_callable([$instance, $action])) {
@@ -96,7 +127,7 @@ class Route
             throw new HttpException(404, lang('Addon action %s not found', [get_class($instance).'->'.$action.'()']));
         }
 
-        Event::trigger('addons_action_begin', $call);
+        Event::trigger('addonsActionBegin', $call);
 
         return call_user_func_array($call, $vars);
     }
@@ -147,10 +178,58 @@ class Route
         }
     }
 
+    /**
+     * 解析操作方法
+     * @param $actions
+     * @return array|string[]
+     */
     protected static function parseActions($actions)
     {
         return array_map(function ($item) {
             return strtolower($item);
         }, is_string($actions) ? explode(",", $actions) : $actions);
+    }
+
+    /**
+     * 自动识别响应数据类型
+     * @param $data
+     * @return Response
+     */
+    protected static function autoResponse($data): Response
+    {
+        if ($data instanceof Response) {
+            $response = $data;
+        } elseif ($data instanceof ResponseInterface) {
+            $response = Response::create($data->getBody()->getContents(), 'html', $data->getStatusCode());
+
+            foreach ($data->getHeaders() as $header => $values) {
+                $response->header([$header => implode(", ", $values)]);
+            }
+        } elseif (!is_null($data)) {
+            // 默认自动识别响应输出类型
+            $type     = app()->request->isJson() ? 'json' : 'html';
+            $response = Response::create($data, $type);
+        } else {
+            $data = ob_get_clean();
+
+            $content  = false === $data ? '' : $data;
+            $status   = '' === $content && app()->request->isJson() ? 204 : 200;
+            $response = Response::create($content, 'html', $status);
+        }
+
+        return $response;
+    }
+
+    /**
+     * 加载应用文件
+     * @param string $addon 插件名
+     * @return void
+     */
+    protected static function loadFile(string $addon): void
+    {
+        $appPath = app()->addons->getAddonsPath() . $addon . DIRECTORY_SEPARATOR;
+        if (is_file($appPath . 'common.php')) {
+            include_once $appPath . 'common.php';
+        }
     }
 }

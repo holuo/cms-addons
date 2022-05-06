@@ -71,7 +71,7 @@ abstract class Controller
         // $this->view = clone View::engine('Think');
         $this->view = new Think($app, config('view'));
         $this->view->config([
-            'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR,
+            //'view_path' => $this->addon_path . 'view' . DIRECTORY_SEPARATOR,
             'tpl_replace_string'=>[
                 '__addons__'=>'/static/addons/'.$this->name,
                 '__libs__'=>$site['cdn'].'/static/libs'
