@@ -262,7 +262,7 @@ if (!function_exists('get_addons_info_all')) {
             foreach ($addons as $key => $value) {
                 $name = basename($value);
                 $info = get_addons_info($name);
-                if (!isset($info['type'])) {
+                if (!isset($info['type']) || $info['name']!=$name) {
                     continue;
                 }
                 if (!empty($info) && $info['type']==$type) {
@@ -344,7 +344,11 @@ if (!function_exists('get_addons_config')) {
         }
         if (is_file($config_file)) {
             $arr2 = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
+            if (!is_array($arr2)) {
+                $arr2 = [];
+            }
         }
+
         $temp_arr = $arr1+$arr2;
 
         if (!empty($temp_arr)) {
