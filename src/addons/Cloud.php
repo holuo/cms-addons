@@ -165,9 +165,10 @@ class Cloud
                 $backup = runtime_path().'backup'.DIRECTORY_SEPARATOR;
                 @mkdir($backup);
                 $backupZip = $backup.config('ver.cms_version').'.zip';
-                $ignoreIterator = new IgnoreFilesRecursiveFilterIterator(new \RecursiveDirectoryIterator(root_path()),$ignoreFiles);
+                //$ignoreIterator = new IgnoreFilesRecursiveFilterIterator(new \RecursiveDirectoryIterator(root_path()),$ignoreFiles);
                 (new \PhpZip\ZipFile())
-                    ->addFilesFromIterator($ignoreIterator) // 包含下级，递归
+                    //->addFilesFromIterator($ignoreIterator) // 包含下级，递归，废弃：会引发open_basedir错误
+                    ->addDirRecursive(root_path()) // 包含下级，递归
                     ->saveAsFile($backupZip)
                     ->close();
 

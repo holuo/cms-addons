@@ -47,8 +47,9 @@ if (!function_exists('hook')) {
      */
     function hook($event, $params = null, bool $once = false, bool $original = false)
     {
-        // 兼容旧版
-        if (strpos($event,'_')!==false) {
+        // 兼容旧版,show_map 模板在使用，upload_after 百度编辑器在使用，index_head、index_footer模板
+        $oldEvn = ['index_head','index_footer','upload_after','show_map','upload_after'];
+        if (strpos($event,'_')!==false && in_array($event, $oldEvn)) {
             $tmpArr = explode('_', $event);
             foreach ($tmpArr as $key=>$value) {
                 if ($key==0) continue;
