@@ -48,7 +48,7 @@ if (!function_exists('hook')) {
     function hook($event, $params = null, bool $once = false, bool $original = false)
     {
         // 兼容旧版,show_map 模板在使用，upload_after 百度编辑器在使用，index_head、index_footer模板
-        $oldEvn = ['index_head','index_footer','upload_after','show_map','upload_after'];
+        $oldEvn = ['index_head','index_footer','upload_after','show_map'];
         if (strpos($event,'_')!==false && in_array($event, $oldEvn)) {
             $tmpArr = explode('_', $event);
             foreach ($tmpArr as $key=>$value) {
@@ -236,8 +236,21 @@ if (!function_exists('get_addons_info_all')) {
                     if (is_dir($v) == false) {
                         continue;
                     }
+                    // 获取模板说明
+                    $info_file = $v . DIRECTORY_SEPARATOR . 'info.ini';
+                    if (!is_file($info_file)) {
+                        throw new \Exception(lang('%s,not exist',[$info_file]));
+                    }
+
                     $tempArr = [];
                     $tempArr['name'] = basename($v);
+                    $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
+                    if (empty($_info['name']) || !\think\facade\Validate::is($name, '/^[a-zA-Z][a-zA-Z0-9_]*$/')) {
+                        throw new \Exception(lang('Incorrect plug-in ID format'));
+                    }
+                    if ($_info['name']!=$tempArr['name']) {
+                        throw new \Exception(lang('模板标识名与文件夹不一致'));
+                    }
 
                     // 获取预览图
                     $previewPath = config('cms.tpl_static').$name.DIRECTORY_SEPARATOR.$tempArr['name'].DIRECTORY_SEPARATOR.'preview.jpg';
@@ -247,12 +260,7 @@ if (!function_exists('get_addons_info_all')) {
                         $tempArr['image'] = '/static/common/image/nopic.png';
                     }
 
-                    // 获取模板说明
-                    $info_file = $v . DIRECTORY_SEPARATOR . 'info.ini';
-                    if (is_file($info_file)) {
-                        $_info = parse_ini_file($info_file, true, INI_SCANNER_TYPED) ?: [];
-                        $tempArr = array_merge($tempArr, $_info);
-                    }
+                    $tempArr = array_merge($tempArr, $_info);
                     $data[$name][$tempArr['name']] = $tempArr;
                 }
             }
@@ -406,5 +414,22 @@ if (!function_exists('write_addons_config')) {
         } else {
             throw new \think\addons\AddonsException(lang('%s,File has no permission to write', [$config_file]));
         }
+    }
+}
+
+if (!function_exists('addons_exist')) {
+    /**
+     * 写入插件配置文件
+     * @param $name
+     * @param $type
+     * @param $module
+     */
+    function addons_exist($name, $type='addon', $module='index')
+    {
+        $info = \app\admin\model\App::where(['name'=>$name,'type'=>$type])->find();
+        if (empty($info) || $info['status']!=1) {
+            return false;
+        }
+        return $info;
     }
 }

@@ -20,6 +20,9 @@ class Service extends \think\Service
 {
     protected $addons_path;
 
+    // 插件vendor类库加载
+    protected static $vendorLoader = [];
+
     public function register()
     {
         $this->addons_path = $this->getAddonsPath();
@@ -175,14 +178,16 @@ class Service extends \think\Service
         $config = Config::get('addons');
         // 读取插件目录及钩子列表
         $base = get_class_methods("\\think\\Addons");
-        // 获取禁用的app
+        // 获取正常用的app
         $appArr = [];
         if ($this->app->http->getName()!='install') {
-            $appArr = Cache::get('app_status_cache');
+            $appArr = $this->app->isDebug() ? [] : Cache::get('app_status_cache');
             if (empty($appArr)) {
                 try {
-                    $appArr = \think\facade\Db::name('app')->where('status','<>',1)->column('name');
-                    Cache::tag('addons')->set('app_status_cache',$appArr, 86400);
+                    $appArr = \think\facade\Db::name('app')->where(['type'=>'addon','status'=>1])->column('name');
+                    if (!$this->app->isDebug()) {
+                        Cache::tag('addons')->set('app_status_cache',$appArr, 86400);
+                    }
                 } catch (\Exception $exception){
                     $appArr = [];
                 }
@@ -195,8 +200,8 @@ class Service extends \think\Service
             $info = pathinfo($addons_file);
             // 获取插件目录名
             $name = pathinfo($info['dirname'], PATHINFO_FILENAME);
-            // 找到插件入口文件
-            if (strtolower($info['filename']) === $name && !in_array($name,$appArr)) {
+            // 找到插件入口文件、注册事件
+            if (strtolower($info['filename']) === $name && in_array($name,$appArr)) {
                 // 读取出所有公共方法
                 $methods = (array)get_class_methods("\\addons\\" . $name . "\\" . $info['filename']);
                 // 跟插件基类方法做比对，得到差异结果
@@ -219,9 +224,16 @@ class Service extends \think\Service
                     }
                 }
             }
-
+            // 插件 composer 注册
+            if (in_array($name,$appArr) && empty(self::$vendorLoader[$name])) {
+                $autoloadPath = $this->getAddonsPath().$name.DIRECTORY_SEPARATOR.'vendor'.DIRECTORY_SEPARATOR.'autoload.php';
+                if (file_exists($autoloadPath)) {
+                    require_once $autoloadPath;
+                }
+                self::$vendorLoader[$name] = true;
+            }
             // 注册路由
-            if ($info['basename']=='route.php' && !in_array($name,$appArr)) {
+            if ($info['basename']=='route.php' && in_array($name,$appArr)) {
                 $config['route'] = include $addons_file;
             }
         }

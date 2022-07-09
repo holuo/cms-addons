@@ -226,6 +226,28 @@ abstract class Addons
     }
 
     /**
+     * 自动注册第三方类库
+     * @param $namespace
+     */
+    public function addNamespace($namespace)
+    {
+        $path = $this->addon_path.'library'.DIRECTORY_SEPARATOR;
+        spl_autoload_register(function ($class) use ($namespace, $path){
+            // 完整命名空间
+            $class = ltrim($class, '\\');
+
+            if (strpos($class, $namespace) === 0) {
+                $php = $path.$class.'.php';
+                if (file_exists($php)) {
+                    include_once $php;
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    /**
      * 获取错误信息
      * @return string
      */

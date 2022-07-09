@@ -1,21 +1,11 @@
 <?php
-// +----------------------------------------------------------------------
-// | ThinkPHP DirectoryIterator实现类 PHP5以上内置了DirectoryIterator类
-// +----------------------------------------------------------------------
-// | Copyright (c) 2008 http://thinkphp.cn All rights reserved.
-// +----------------------------------------------------------------------
-// | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
-// +----------------------------------------------------------------------
-// | Author: liu21st <liu21st@gmail.com>
-// +----------------------------------------------------------------------
 declare (strict_types=1);
 
 namespace think\addons;
 
 class Dir
 {
-    private $_values = array();
-
+    // 错误信息
     public $error = "";
 
     protected static $instance;
@@ -25,10 +15,10 @@ class Dir
      * @param string $path
      * @return static
      */
-    public static function instance($path = '')
+    public static function instance()
     {
         if (is_null(self::$instance)) {
-            self::$instance = new static($path);
+            self::$instance = new static();
         }
 
         return self::$instance;
@@ -39,275 +29,38 @@ class Dir
      * @param string $path 目录路径
      * @param string $pattern 目录路径
      */
-    public function __construct($path='', $pattern='*')
-    {
-        if ($path && substr($path, -1) != "/")
-            $path .= "/";
-        if ($path) {
-            $this->listFile($path, $pattern);
-        }
-    }
+    public function __construct()
+    {}
 
     /**
-     * 取得目录下面的文件信息
-     * @param $pathname
-     * @param string $pattern 路径
+     * 判断文件、目录是否可写
+     * @param $file
+     * @return bool true=可写、false=不可写
      */
-    public function listFile($pathname, $pattern = '*')
+    public function isReallyWritable($file)
     {
-        static $_listDirs = array();
-        $guid = md5($pathname . $pattern);
-        if (!isset($_listDirs[$guid])) {
-            $dir = array();
-            $list = glob($pathname . $pattern);
-            foreach ($list as $i => $file) {
-                //编码转换.把中文的调整一下.
-                $dir[$i]['filename'] = preg_replace('/^.+[\\\\\\/]/', '', $file);
-                $dir[$i]['pathname'] = realpath($file);
-                $dir[$i]['owner'] = fileowner($file);
-                $dir[$i]['perms'] = fileperms($file);
-                $dir[$i]['inode'] = fileinode($file);
-                $dir[$i]['group'] = filegroup($file);
-                $dir[$i]['path'] = dirname($file);
-                $dir[$i]['atime'] = fileatime($file);
-                $dir[$i]['ctime'] = filectime($file);
-                $dir[$i]['size'] = filesize($file);
-                $dir[$i]['type'] = filetype($file);
+        // 在Unix内核系统中关闭了safe_mode,可以直接使用is_writable()
+        if (DIRECTORY_SEPARATOR == '/' AND @ini_get("safe_mode") == false) {
+            return is_writable($file);
+        }
 
-                $ext = '';
-                if (is_file($file)) {
-                    $ext = strrchr(basename($file), '.');
-                    $ext = $ext ? substr($ext, 1) : '';
-                    $ext = $ext ? strtolower($ext) : '';
-                }
-                $dir[$i]['ext'] = $ext;
+        // 在Windows系统中打开了safe_mode的情况
+        if (is_dir($file)) {
+            $file = rtrim($file, '/').'/'.md5(mt_rand(1,100).mt_rand(1,100));
 
-                $dir[$i]['mtime'] = filemtime($file);
-                $dir[$i]['isDir'] = is_dir($file);
-                $dir[$i]['isFile'] = is_file($file);
-                $dir[$i]['isLink'] = is_link($file);
-                $dir[$i]['isReadable'] = is_readable($file);
-                $dir[$i]['isWritable'] = is_writable($file);
-                $dir[$i]['isExecutable']= function_exists('is_executable')?is_executable($file):'';
+            if (($fp = @fopen($file, 'ab')) === false) {
+                return false;
             }
 
-            // 对结果排序 保证目录在前面
-            usort($dir, function ($a, $b) {
-                $k = "isDir";
-                if ($a[$k] == $b[$k]) return 0;
-                return $a[$k] > $b[$k] ? -1 : 1;
-            });
-            $this->_values = $dir;
-            $_listDirs[$guid] = $dir;
-        } else {
-            $this->_values = $_listDirs[$guid];
-        }
-        clearstatcache();
-    }
-
-    /**
-     * 返回数组中的当前元素（单元）
-     * @param $arr
-     * @return bool|mixed
-     */
-    public function current($arr)
-    {
-        if (!is_array($arr)) {
+            fclose($fp);
+            @chmod($file, 0777);
+            @unlink($file);
+            return true;
+        } elseif (($fp = @fopen($file, 'ab')) === false) {
             return false;
         }
-        return current($arr);
-    }
-
-    /**
-     * 文件上次访问时间
-     * @return mixed
-     */
-    public function getATime()
-    {
-        $current = $this->current($this->_values);
-        return $current['atime'];
-    }
-
-    /**
-     * 取得文件的 inode 修改时间
-     * @return mixed
-     */
-    public function getCTime()
-    {
-        $current = $this->current($this->_values);
-        return $current['ctime'];
-    }
-
-    /**
-     * 遍历子目录文件信息
-     * @return bool|Dir
-     */
-    public function getChildren()
-    {
-        $current = $this->current($this->_values);
-        if ($current['isDir']) {
-            return new Dir($current['pathname']);
-        }
-        return false;
-    }
-
-    /**
-     * 取得文件名
-     * @return mixed
-     */
-    public function getFilename()
-    {
-        $current = $this->current($this->_values);
-        return $current['filename'];
-    }
-
-    /**
-     * 取得文件的组
-     * @return mixed
-     */
-    public function getGroup()
-    {
-        $current = $this->current($this->_values);
-        return $current['group'];
-    }
-
-    /**
-     * 取得文件的 inode
-     * @return mixed
-     */
-    public function getInode()
-    {
-        $current = $this->current($this->_values);
-        return $current['inode'];
-    }
-
-    /**
-     * 取得文件的上次修改时间
-     * @return mixed
-     */
-    function getMTime()
-    {
-        $current = $this->current($this->_values);
-        return $current['mtime'];
-    }
-
-    /**
-     * 取得文件的所有者
-     * @return mixed
-     */
-    public function getOwner()
-    {
-        $current = $this->current($this->_values);
-        return $current['owner'];
-    }
-
-    /**
-     * 取得文件路径，不包括文件名
-     * @return mixed
-     */
-    public function getPath()
-    {
-        $current = $this->current($this->_values);
-        return $current['path'];
-    }
-
-    /**
-     * 取得文件的完整路径，包括文件名
-     * @return mixed
-     */
-    public function getPathname()
-    {
-        $current = $this->current($this->_values);
-        return $current['pathname'];
-    }
-
-    /**
-     * 取得文件的权限
-     * @return mixed
-     */
-    public function getPerms()
-    {
-        $current = $this->current($this->_values);
-        return $current['perms'];
-    }
-
-    /**
-     * 取得文件的大小
-     * @return mixed
-     */
-    public function getSize()
-    {
-        $current = $this->current($this->_values);
-        return $current['size'];
-    }
-
-    /**
-     * 取得文件类型
-     * @return mixed
-     */
-    public function getType()
-    {
-        $current = $this->current($this->_values);
-        return $current['type'];
-    }
-
-    /**
-     * 是否为目录
-     * @return mixed
-     */
-    public function isDir()
-    {
-        $current = $this->current($this->_values);
-        return $current['isDir'];
-    }
-
-    /**
-     * 是否为文件
-     * @return mixed
-     */
-    public function isFile()
-    {
-        $current = $this->current($this->_values);
-        return $current['isFile'];
-    }
-
-    /**
-     * 文件是否为一个符号连接
-     * @return mixed
-     */
-    public function isLink()
-    {
-        $current = $this->current($this->_values);
-        return $current['isLink'];
-    }
-
-    /**
-     * 文件是否可以执行
-     * @return mixed
-     */
-    public function isExecutable()
-    {
-        $current = $this->current($this->_values);
-        return $current['isExecutable'];
-    }
-
-    /**
-     * 文件是否可读
-     * @return mixed
-     */
-    public function isReadable()
-    {
-        $current = $this->current($this->_values);
-        return $current['isReadable'];
-    }
-
-    /**
-     * 返回目录的数组信息
-     * @return array
-     */
-    public function toArray()
-    {
-        return $this->_values;
+        fclose($fp);
+        return true;
     }
 
     /**
@@ -329,13 +82,96 @@ class Dir
     }
 
     /**
-     * 取得目录中的结构信息
+     * 取得目录中的结构信息,不包含下级
      * @param $directory
      * @return array|false
      */
     public function getList($directory)
     {
         return scandir($directory);
+    }
+
+    /**
+     * 获取文件、文件夹列表（用于JsTree插件的多级结构数组、解析模板）
+     * @param string $dir
+     * @param string $filterExt 过滤文件后缀，$bool=true 表示只筛选$filterExt里面的后缀，false则为排除
+     * @param boolean $bool
+     * @return array
+     */
+    public function getJsTreeTpl(string $dir, string $filterExt = '', bool $bool = true)
+    {
+        $jstree = [];
+        $filterExtArr = !empty($filterExt) ? explode(',', $filterExt) : '';
+        $state = ['opened'=>false,'disabled'=>false,'selected'=>false];
+        if (!is_dir($dir)) {
+            return [];
+        }
+        $di = new \DirectoryIterator($dir);
+        $i = 0;
+        foreach ($di as $key=>$value) {
+            if ($value->getBasename()=='.' || $value->getBasename()=='..') {
+                continue;
+            }
+            if ($value->isDir()) {
+                $jstree[$i]['icon'] = 'fas fa-folder';
+                $jstree[$i]['data']['isdir'] = true;
+                $jstree[$i]['children'] = $this->getJsTreeTpl($value->getRealPath() . DIRECTORY_SEPARATOR, $filterExt, $bool);
+            } else {
+                $ext = $value->getExtension();
+                if ($filterExt && ($bool ? !in_array($ext,$filterExtArr) : in_array($ext,$filterExtArr))) {
+                    continue;
+                }
+                $jstree[$i]['icon'] = 'far fa-file';
+                $jstree[$i]['data']['isdir'] = false;
+            }
+
+            $title = $value->getFilename();
+            $jstree[$i]['data']['org_text'] = $title;
+            $jstree[$i]['data']['real'] = $value->getRealPath();
+
+            if ($title=='info.ini') {
+                $title .= '(模板信息)';
+            }
+            if ($title=='list') {
+                $title .= '(列表)';
+            }
+            if ($title=='page') {
+                $title .= '(单页)';
+            }
+            if ($title=='common') {
+                $title .= '(公共文件)';
+            }
+            if ($title=='show') {
+                $title .= '(详情)';
+            }
+            if ($title=='category') {
+                $title .= '(栏目首页)';
+            }
+            if ($title=='search.html') {
+                $title .= '(搜索)';
+            }
+            if ($title=='index.html') {
+                $title .= '(首页)';
+            }
+            if ($title=='success.html') {
+                $title .= '(成功)';
+            }
+            if ($title=='error.html') {
+                $title .= '(错误)';
+            }
+            if ($title=='close.html') {
+                $title .= '(站点关闭)';
+            }
+            if ($title=='config.json') {
+                $title .= '(配置)';
+            }
+            $jstree[$i]['text'] = $title;
+            $jstree[$i]['state'] = $state;
+            $i++;
+        }
+
+        rsort($jstree);
+        return $jstree;
     }
 
     /**
