@@ -223,7 +223,7 @@ class Cloud
             } else {
                 $zipFile
                     ->addDirRecursive($path) // 包含下级，递归
-                    ->outputAsAttachment(md5($path).'.zip'); // 直接输出到浏览器
+                    ->outputAsAttachment(basename($path).'.zip'); // 直接输出到浏览器
             }
         } catch(Exception $e){
             $zipFile->close();
@@ -510,6 +510,10 @@ class Cloud
         if ('template' == $info['type']) { // 模板卸载方式
             $addonsPath = config('cms.tpl_path').$info['module'].DIRECTORY_SEPARATOR;
             $staticPath = config('cms.tpl_static').$info['module'].DIRECTORY_SEPARATOR;
+            // 卸载演示数据
+            if (is_file($addonsPath.$info['name'].'/undemodata.sql')) {
+                create_sql($addonsPath.$info['name'].'/undemodata.sql');
+            }
             Dir::instance()->delDir($addonsPath.$info['name']);
             Dir::instance()->delDir($staticPath.$info['name']);
             return true;
@@ -519,7 +523,10 @@ class Cloud
             if (!empty($obj)) { // 调用插件卸载
                 $obj->uninstall();
             }
-
+            // 卸载演示数据
+            if (is_file(app()->addons->getAddonsPath().$info['name'].'/undemodata.sql')) {
+                create_sql(app()->addons->getAddonsPath().$info['name'].'/undemodata.sql');
+            }
             Dir::instance()->delDir(app()->addons->getAddonsPath().$info['name']);
             return true;
         }
@@ -641,7 +648,7 @@ class Cloud
                         if (is_dir($addonsStatic.$name.DIRECTORY_SEPARATOR) && $force===false) {
                             throw new AddonsException(__('%s existed', [$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
-                        if (!@mkdir($addonsStatic.$name.DIRECTORY_SEPARATOR)) {
+                        if (!@mkdir($addonsStatic.$name.DIRECTORY_SEPARATOR) && $force===false) {
                             throw new AddonsException(__('Failed to create "%s" folder',[$addonsStatic.$name.DIRECTORY_SEPARATOR]));
                         }
                         $installDir[] = $addonsStatic.$name.DIRECTORY_SEPARATOR; // 记录安装的文件，出错回滚
