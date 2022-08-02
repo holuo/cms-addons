@@ -126,34 +126,44 @@ class Cloud
      * 更新CMS
      * @param $v
      * @param string $p
+     * @param string $path
      * @return bool
      */
-    public function upgradeCms($v, $p = '')
+    public function upgradeCms($v, $p = '', $path = '')
     {
-        try {
-            $client = $this->getClient();
-            $response = $client->request('get', 'cms/download', ['query' => ['v'=>$v, 'p'=>$p]]);
-            $content = $response->getBody()->getContents();
-        }  catch (ClientException $exception) {
-            throw new AddonsException($exception->getMessage());
-        }
+        if (empty($path)) {
+            try {
+                $client = $this->getClient();
+                $response = $client->request('get', 'cms/download', ['query' => ['v'=>$v, 'p'=>$p]]);
+                $content = $response->getBody()->getContents();
+            }  catch (ClientException $exception) {
+                throw new AddonsException($exception->getMessage());
+            }
 
-        if (substr($content, 0, 1) === '{') {
-            // json 错误信息
-            $json = json_decode($content, true);
-            throw new AddonsException($json['msg']??__('Server returns abnormal data'));
+            if (substr($content, 0, 1) === '{') {
+                // json 错误信息
+                $json = json_decode($content, true);
+                throw new AddonsException($json['msg']??__('Server returns abnormal data'));
+            }
+            // 保存路径
+            $name = $v.'_'.$p;
+            $zip = $this->getCloudTmp().$name.'.zip';
+            if (file_exists($zip)) {
+                @unlink($zip);
+            }
+            $w = fopen($zip, 'w');
+            fwrite($w, $content);
+            fclose($w);
+        } else {
+            // 保存路径
+            $name = $v.'_'.$p;
+            $zip = $this->getCloudTmp().$name.'.zip';
+            if (file_exists($zip)) {
+                @unlink($zip);
+            }
+            $path = str_replace('\\','/',public_path().ltrim($path,'/'));
+            rename($path,$zip);
         }
-
-        // 保存路径
-        $name = $v.'_'.$p;
-        $zip = $this->getCloudTmp().$name.'.zip';
-        if (file_exists($zip)) {
-            @unlink($zip);
-        }
-
-        $w = fopen($zip, 'w');
-        fwrite($w, $content);
-        fclose($w);
 
         $dir = Dir::instance();
         try {
