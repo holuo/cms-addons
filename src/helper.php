@@ -349,16 +349,33 @@ if (!function_exists('get_addons_config')) {
         $arr1 = $arr2 = [];
         $temp_arr = \app\admin\model\App::where(['name'=>$name])->value('config');
         if (!empty($temp_arr)) {
-            $arr1 = json_decode($temp_arr, true);
-        }
-        if (is_file($config_file)) {
-            $arr2 = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
-            if (!is_array($arr2)) {
-                $arr2 = [];
+            $temp_arr = json_decode($temp_arr, true);
+            foreach ($temp_arr as $key => $value) {
+                if (!empty($value['item'])) {
+                    foreach ($value['item'] as $kk=>$v) {
+                        $config[$key][$kk] = $v['value'];
+                    }
+                } else {
+                    $config[$key] = $value['value'];
+                }
             }
         }
-
-        $temp_arr = $arr1+$arr2;
+        // 配置文件
+        if (is_file($config_file)) {
+            $arr2 = $type!='template'?(array)include $config_file:json_decode(file_get_contents($config_file),true);
+            if (is_array($arr2)) {
+                $temp_arr = $arr2;
+                foreach ($temp_arr as $key => $value) {
+                    if (!empty($value['item'])) {
+                        foreach ($value['item'] as $kk=>$v) {
+                            $temp_arr[$key][$kk]['value'] = $config[$key][$kk] ?? $temp_arr[$key]['item'][$kk]['value'];
+                        }
+                    } else {
+                        $temp_arr[$key]['value'] = $config[$key] ?? $temp_arr[$key]['value'];
+                    }
+                }
+            }
+        }
 
         if (!empty($temp_arr)) {
             if ($complete) {
@@ -419,7 +436,7 @@ if (!function_exists('write_addons_config')) {
 
 if (!function_exists('addons_exist')) {
     /**
-     * 写入插件配置文件
+     * 判断插件是否存在
      * @param $name
      * @param $type
      * @param $module
