@@ -368,7 +368,7 @@ if (!function_exists('get_addons_config')) {
                 foreach ($temp_arr as $key => $value) {
                     if (!empty($value['item'])) {
                         foreach ($value['item'] as $kk=>$v) {
-                            $temp_arr[$key][$kk]['value'] = $config[$key][$kk] ?? $temp_arr[$key]['item'][$kk]['value'];
+                            $temp_arr[$key]['item'][$kk]['value'] = $config[$key][$kk] ?? $temp_arr[$key]['item'][$kk]['value'];
                         }
                     } else {
                         $temp_arr[$key]['value'] = $config[$key] ?? $temp_arr[$key]['value'];
