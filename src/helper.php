@@ -399,7 +399,7 @@ if (!function_exists('get_addons_config')) {
                     }
                 }
             }
-            app()->cache->tag('get_addons_config')->set($k, $config);
+            app()->cache->tag('addons')->set($k, $config);
         }
         return $config;
     }
