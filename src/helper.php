@@ -340,8 +340,8 @@ if (!function_exists('get_addons_config')) {
             $config_file = app()->addons->getAddonsPath() . $name . DIRECTORY_SEPARATOR . 'config.php';
         }
         
-        $config = app()->cache->get($k);
-        if ($config && $complete===false && app()->isDebug()!==true) {
+        $config = app()->isDebug() ? [] : app()->cache->get($k);
+        if ($config && $complete===false) {
             return $config;
         }
 

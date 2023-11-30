@@ -2,7 +2,7 @@
     "name": "hkcms/cms-addons",
     "description": "HkCms开源内容管理系统",
     "license": "Apache-2.0",
-    "version": "1.1.5",
+    "version": "1.1.6",
     "authors": [
         {
             "name": "luo",
